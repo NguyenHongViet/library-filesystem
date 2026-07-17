@@ -89,6 +89,10 @@ export const filesApi = {
     request(`/shared/users/${userId}/entries${query({ parent_id: parentId })}`),
   sharedDocumentDownloadUrl: (id) => `/api/v1/shared/documents/${id}/download`,
   sharedFolderDownloadUrl: (id) => `/api/v1/shared/folders/${id}/download`,
+  copySharedDocument: (id, folderId) =>
+    request(`/shared/documents/${id}/copy`, { method: 'POST', body: { folder_id: folderId } }),
+  copySharedFolder: (id, folderId) =>
+    request(`/shared/folders/${id}/copy`, { method: 'POST', body: { folder_id: folderId } }),
   restoreDocument: (id) => request(`/documents/${id}/restore`, { method: 'POST' }),
   uploadDocument: (file, folderId, relativePath) => {
     const formData = new FormData()

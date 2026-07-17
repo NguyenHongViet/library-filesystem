@@ -29,6 +29,21 @@ class Folder < ApplicationRecord
     [ self ] + children.flat_map(&:self_and_descendants)
   end
 
+  # Copies this folder's public subtree into `owner`'s library under `parent`,
+  # recreating the structure. Only public files and subfolders are copied, and
+  # each file becomes a fresh copy (no version history). A same-named folder in
+  # the destination is reused rather than duplicated.
+  def copy_to!(owner:, parent:)
+    new_folder = owner.folders.find_or_create_by!(name: name, parent: parent)
+    documents.public_documents.kept.find_each do |document|
+      document.copy_to!(owner: owner, folder: new_folder)
+    end
+    children.public_folders.find_each do |child|
+      child.copy_to!(owner: owner, parent: new_folder)
+    end
+    new_folder
+  end
+
   # Hard-deletes the folder subtree, but first soft-deletes the documents it
   # holds and records their old path so they can be restored later. Detaching
   # each document (folder_id: nil) is what keeps it out of the folder's

@@ -10,6 +10,9 @@ vi.mock('../api/client', () => ({
     listSharedEntries: vi.fn(),
     sharedDocumentDownloadUrl: (id) => `/api/v1/shared/documents/${id}/download`,
     sharedFolderDownloadUrl: (id) => `/api/v1/shared/folders/${id}/download`,
+    copySharedDocument: vi.fn(),
+    copySharedFolder: vi.fn(),
+    listFolders: vi.fn(),
   },
 }))
 
@@ -18,6 +21,7 @@ describe('SharedPage', () => {
     vi.clearAllMocks()
     filesApi.listSharedUsers.mockResolvedValue({ users: [] })
     filesApi.listSharedEntries.mockResolvedValue({ folders: [], documents: [] })
+    filesApi.listFolders.mockResolvedValue({ folders: [] })
   })
 
   it('shows an empty state when there are no other users', async () => {
@@ -172,6 +176,132 @@ describe('SharedPage', () => {
     await user.click(screen.getByRole('button', { name: 'Reports' }))
 
     await waitFor(() => expect(filesApi.listSharedEntries).toHaveBeenLastCalledWith(1, 5))
+  })
+
+  it('copies a shared file into the chosen folder and shows a confirmation', async () => {
+    const user = userEvent.setup()
+    filesApi.listSharedUsers.mockResolvedValue({
+      users: [{ id: 1, name: 'Alice', email: 'alice@example.com' }],
+    })
+    filesApi.listSharedEntries.mockResolvedValue({
+      folders: [],
+      documents: [{ id: 9, name: 'public.txt', content_type: 'text/plain', byte_size: 4 }],
+    })
+    filesApi.listFolders.mockResolvedValue({ folders: [] })
+    filesApi.copySharedDocument.mockResolvedValue({ document: { id: 100 } })
+
+    renderWithMantine(<SharedPage />)
+    await user.click(await screen.findByText('Alice'))
+    await screen.findByText('public.txt')
+
+    await user.click(screen.getByRole('button', { name: 'Copy public.txt' }))
+    await screen.findByText('No subfolders here.')
+    await user.click(screen.getByRole('button', { name: /copy here/i }))
+
+    await waitFor(() =>
+      expect(filesApi.copySharedDocument).toHaveBeenCalledWith(9, null),
+    )
+    expect(
+      await screen.findByText('Copied "public.txt" to your library.'),
+    ).toBeInTheDocument()
+  })
+
+  it('dismisses the copy confirmation and can cancel the modal', async () => {
+    const user = userEvent.setup()
+    filesApi.listSharedUsers.mockResolvedValue({
+      users: [{ id: 1, name: 'Alice', email: 'alice@example.com' }],
+    })
+    filesApi.listSharedEntries.mockResolvedValue({
+      folders: [],
+      documents: [{ id: 9, name: 'public.txt', content_type: 'text/plain', byte_size: 4 }],
+    })
+    filesApi.listFolders.mockResolvedValue({ folders: [] })
+    filesApi.copySharedDocument.mockResolvedValue({ document: { id: 100 } })
+
+    renderWithMantine(<SharedPage />)
+    await user.click(await screen.findByText('Alice'))
+    await screen.findByText('public.txt')
+
+    // Cancel closes the modal without copying.
+    await user.click(screen.getByRole('button', { name: 'Copy public.txt' }))
+    await screen.findByText('No subfolders here.')
+    await user.click(screen.getByRole('button', { name: /cancel/i }))
+    expect(filesApi.copySharedDocument).not.toHaveBeenCalled()
+
+    // Copy, then dismiss the confirmation banner.
+    await user.click(screen.getByRole('button', { name: 'Copy public.txt' }))
+    await screen.findByText('No subfolders here.')
+    await user.click(screen.getByRole('button', { name: /copy here/i }))
+    const notice = await screen.findByText('Copied "public.txt" to your library.')
+    await user.click(screen.getByRole('button', { name: /dismiss/i }))
+    await waitFor(() => expect(notice).not.toBeInTheDocument())
+  })
+
+  it('copies a shared folder', async () => {
+    const user = userEvent.setup()
+    filesApi.listSharedUsers.mockResolvedValue({
+      users: [{ id: 1, name: 'Alice', email: 'alice@example.com' }],
+    })
+    filesApi.listSharedEntries.mockResolvedValue({
+      folders: [{ id: 5, name: 'Reports', parent_id: null }],
+      documents: [],
+    })
+    filesApi.listFolders.mockResolvedValue({ folders: [] })
+    filesApi.copySharedFolder.mockResolvedValue({ folder: { id: 200 } })
+
+    renderWithMantine(<SharedPage />)
+    await user.click(await screen.findByText('Alice'))
+    await screen.findByText('Reports')
+
+    await user.click(screen.getByRole('button', { name: 'Copy Reports' }))
+    await screen.findByText('No subfolders here.')
+    await user.click(screen.getByRole('button', { name: /copy here/i }))
+
+    await waitFor(() => expect(filesApi.copySharedFolder).toHaveBeenCalledWith(5, null))
+  })
+
+  it('shows an error when a copy fails', async () => {
+    const user = userEvent.setup()
+    filesApi.listSharedUsers.mockResolvedValue({
+      users: [{ id: 1, name: 'Alice', email: 'alice@example.com' }],
+    })
+    filesApi.listSharedEntries.mockResolvedValue({
+      folders: [],
+      documents: [{ id: 9, name: 'public.txt', content_type: 'text/plain', byte_size: 4 }],
+    })
+    filesApi.listFolders.mockResolvedValue({ folders: [] })
+    filesApi.copySharedDocument.mockRejectedValue(new Error('Copy failed.'))
+
+    renderWithMantine(<SharedPage />)
+    await user.click(await screen.findByText('Alice'))
+    await screen.findByText('public.txt')
+
+    await user.click(screen.getByRole('button', { name: 'Copy public.txt' }))
+    await screen.findByText('No subfolders here.')
+    await user.click(screen.getByRole('button', { name: /copy here/i }))
+
+    expect(await screen.findByText('Copy failed.')).toBeInTheDocument()
+  })
+
+  it('does not navigate into a shared folder when its copy button is clicked', async () => {
+    const user = userEvent.setup()
+    filesApi.listSharedUsers.mockResolvedValue({
+      users: [{ id: 1, name: 'Alice', email: 'alice@example.com' }],
+    })
+    filesApi.listSharedEntries.mockResolvedValue({
+      folders: [{ id: 5, name: 'Reports', parent_id: null }],
+      documents: [],
+    })
+
+    renderWithMantine(<SharedPage />)
+    await user.click(await screen.findByText('Alice'))
+    await screen.findByText('Reports')
+    filesApi.listSharedEntries.mockClear()
+
+    await user.click(screen.getByRole('button', { name: 'Copy Reports' }))
+
+    // Modal opened (folder picker loads), but we did not navigate deeper.
+    expect(filesApi.listSharedEntries).not.toHaveBeenCalled()
   })
 
   it('shows an empty state inside a user with nothing shared', async () => {

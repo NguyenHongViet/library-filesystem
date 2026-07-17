@@ -62,7 +62,54 @@ module Api
           disposition: "attachment"
       end
 
+      # Copies a public file into the current user's library, under a chosen
+      # destination folder (blank folder_id = root).
+      def copy_document
+        source = Document.public_documents.kept.find_by(id: params[:id])
+        return render json: { error: "File not found." }, status: :not_found if source.nil?
+
+        destination = destination_folder
+        return if performed?
+
+        copy = ActiveRecord::Base.transaction { source.copy_to!(owner: current_user, folder: destination) }
+        render json: { document: copied_json(copy) }, status: :created
+      end
+
+      # Copies a public folder (its public subtree) into the current user's
+      # library under a chosen destination folder.
+      def copy_folder
+        source = Folder.public_folders.find_by(id: params[:id])
+        return render json: { error: "Folder not found." }, status: :not_found if source.nil?
+
+        destination = destination_folder
+        return if performed?
+
+        copy = ActiveRecord::Base.transaction { source.copy_to!(owner: current_user, parent: destination) }
+        render json: { folder: { id: copy.id, name: copy.name, parent_id: copy.parent_id } }, status: :created
+      end
+
       private
+
+      # Resolves the current user's destination folder from folder_id. Returns
+      # nil for the root; renders 404 (and marks the response performed) when a
+      # given folder is missing or not owned by the user.
+      def destination_folder
+        return nil if params[:folder_id].blank?
+
+        current_user.folders.find(params[:folder_id])
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: "Destination folder not found." }, status: :not_found
+        nil
+      end
+
+      def copied_json(document)
+        {
+          id: document.id,
+          name: document.name,
+          folder_id: document.folder_id,
+          copied_from_id: document.copied_from_id
+        }
+      end
 
       def add_public_folder_to_archive(zip, folder, prefix)
         zip.put_next_entry(prefix)

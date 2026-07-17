@@ -65,7 +65,44 @@ class Document < ApplicationRecord
     end
   end
 
+  # Creates an independent copy of this file in `owner`'s library. The copy is
+  # a brand-new file (its own blob, no version history) that links back to the
+  # source via copied_from. If a file with the same name already exists in the
+  # destination, the copy is renamed ("report.txt" -> "report (1).txt") so the
+  # existing file is never overwritten.
+  def copy_to!(owner:, folder:)
+    copy = owner.documents.new(
+      name: available_name_in(owner, folder),
+      folder: folder,
+      content_type: content_type,
+      byte_size: byte_size,
+      copied_from: self
+    )
+    copy.file.attach(duplicate_blob) if file.attached?
+    copy.save!
+    copy
+  end
+
   private
+
+  def available_name_in(owner, folder)
+    taken = owner.documents.kept.where(folder_id: folder&.id).pluck(:name)
+    return name unless taken.include?(name)
+
+    extension = File.extname(name)
+    base = File.basename(name, extension)
+    counter = 1
+    counter += 1 while taken.include?("#{base} (#{counter})#{extension}")
+    "#{base} (#{counter})#{extension}"
+  end
+
+  def duplicate_blob
+    ActiveStorage::Blob.create_and_upload!(
+      io: StringIO.new(file.download),
+      filename: file.blob.filename.to_s,
+      content_type: file.blob.content_type
+    )
+  end
 
   def archive_current_version!(user)
     old_blob = file.blob

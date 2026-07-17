@@ -142,6 +142,28 @@ describe('filesApi', () => {
     expect(filesApi.rootDownloadUrl()).toBe('/api/v1/folders/download_root')
   })
 
+  it('copies a shared document into a chosen folder', async () => {
+    global.fetch.mockResolvedValue(mockResponse({ status: 201, json: { document: { id: 1 } } }))
+
+    await filesApi.copySharedDocument(9, 4)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/shared/documents/9/copy',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ folder_id: 4 }) }),
+    )
+  })
+
+  it('copies a shared folder into the root', async () => {
+    global.fetch.mockResolvedValue(mockResponse({ status: 201, json: { folder: { id: 2 } } }))
+
+    await filesApi.copySharedFolder(5, null)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/shared/folders/5/copy',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ folder_id: null }) }),
+    )
+  })
+
   it('lists documents scoped to a folder', async () => {
     global.fetch.mockResolvedValue(mockResponse({ json: { documents: [] } }))
 

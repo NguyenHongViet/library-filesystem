@@ -32,6 +32,8 @@ Rails.application.routes.draw do
       get "shared/users/:user_id/entries" => "shared#entries"
       get "shared/documents/:id/download" => "shared#download_document"
       get "shared/folders/:id/download" => "shared#download_folder"
+      post "shared/documents/:id/copy" => "shared#copy_document"
+      post "shared/folders/:id/copy" => "shared#copy_folder"
     end
   end
 

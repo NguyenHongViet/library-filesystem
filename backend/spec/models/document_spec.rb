@@ -133,6 +133,31 @@ RSpec.describe Document, type: :model do
     end
   end
 
+  describe '#copy_to!' do
+    it 'copies into another library as a fresh file linked to the source' do
+      source = create(:document, name: 'a.txt')
+      source.file.attach(io: StringIO.new('data'), filename: 'a.txt', content_type: 'text/plain')
+      owner = create(:user)
+
+      copy = source.copy_to!(owner: owner, folder: nil)
+
+      expect(copy.user).to eq(owner)
+      expect(copy.copied_from).to eq(source)
+      expect(copy.file.download).to eq('data')
+      expect(copy.document_versions).to be_empty
+    end
+
+    it 'renames files without an extension on collision' do
+      owner = create(:user)
+      create(:document, user: owner, name: 'report')
+      source = create(:document, name: 'report')
+
+      copy = source.copy_to!(owner: owner, folder: nil)
+
+      expect(copy.name).to eq('report (1)')
+    end
+  end
+
   describe '#restore_version!' do
     def build_upload(content, name: 'note.txt')
       Rack::Test::UploadedFile.new(StringIO.new(content), 'text/plain', original_filename: name)

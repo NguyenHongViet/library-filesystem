@@ -204,4 +204,152 @@ RSpec.describe "Api::V1::Shared", type: :request do
       expect(response).to have_http_status(:not_found)
     end
   end
+
+  describe "POST /api/v1/shared/documents/:id/copy" do
+    let(:owner) { create(:user) }
+
+    def public_file(content, name: "shared.txt")
+      document = build(:document, user: owner, name: name, is_public: true, content_type: "text/plain")
+      document.file.attach(io: StringIO.new(content), filename: name, content_type: "text/plain")
+      document.save!
+      document
+    end
+
+    it "returns 401 when not signed in" do
+      document = public_file("data")
+      post "/api/v1/shared/documents/#{document.id}/copy"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it "copies a public file into the current user's library as a fresh file" do
+      sign_in_user
+      source = public_file("hello", name: "shared.txt")
+
+      expect do
+        post "/api/v1/shared/documents/#{source.id}/copy"
+      end.to change(user.documents, :count).by(1)
+
+      expect(response).to have_http_status(:created)
+      copy = user.documents.find(JSON.parse(response.body).dig("document", "id"))
+      expect(copy.name).to eq("shared.txt")
+      expect(copy.folder_id).to be_nil
+      expect(copy.copied_from).to eq(source)
+      expect(copy.file.download).to eq("hello")
+      expect(copy.document_versions).to be_empty
+      expect(copy.is_public).to be(false)
+      # Independent blob, so purging one never affects the other.
+      expect(copy.file.blob_id).not_to eq(source.file.blob_id)
+    end
+
+    it "copies into a chosen destination folder the user owns" do
+      sign_in_user
+      destination = create(:folder, user: user, name: "Inbox")
+      source = public_file("data")
+
+      post "/api/v1/shared/documents/#{source.id}/copy", params: { folder_id: destination.id }
+
+      copy = user.documents.find(JSON.parse(response.body).dig("document", "id"))
+      expect(copy.folder).to eq(destination)
+    end
+
+    it "renames the copy when a file with the same name already exists" do
+      sign_in_user
+      existing = create(:document, user: user, name: "shared.txt")
+      source = public_file("hello", name: "shared.txt")
+
+      post "/api/v1/shared/documents/#{source.id}/copy"
+
+      expect(response).to have_http_status(:created)
+      copy = user.documents.find(JSON.parse(response.body).dig("document", "id"))
+      expect(copy.name).to eq("shared (1).txt")
+      # The existing file is left untouched (not overwritten, no new version).
+      expect(existing.reload.name).to eq("shared.txt")
+      expect(existing.document_versions).to be_empty
+    end
+
+    it "increments the suffix past earlier copies" do
+      sign_in_user
+      create(:document, user: user, name: "shared.txt")
+      create(:document, user: user, name: "shared (1).txt")
+      source = public_file("hello", name: "shared.txt")
+
+      post "/api/v1/shared/documents/#{source.id}/copy"
+
+      copy = user.documents.find(JSON.parse(response.body).dig("document", "id"))
+      expect(copy.name).to eq("shared (2).txt")
+    end
+
+    it "returns 404 for a private file" do
+      sign_in_user
+      private_doc = build(:document, user: owner, is_public: false)
+      private_doc.file.attach(io: StringIO.new("x"), filename: "p.txt", content_type: "text/plain")
+      private_doc.save!
+
+      post "/api/v1/shared/documents/#{private_doc.id}/copy"
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "returns 404 when the destination folder is not owned by the user" do
+      sign_in_user
+      source = public_file("data")
+      other_folder = create(:folder)
+
+      post "/api/v1/shared/documents/#{source.id}/copy", params: { folder_id: other_folder.id }
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "POST /api/v1/shared/folders/:id/copy" do
+    let(:owner) { create(:user) }
+
+    def public_file(name, content, folder:)
+      document = build(:document, user: owner, name: name, folder: folder, is_public: true, content_type: "text/plain")
+      document.file.attach(io: StringIO.new(content), filename: name, content_type: "text/plain")
+      document.save!
+      document
+    end
+
+    it "copies a public folder subtree, keeping only public items" do
+      sign_in_user
+      reports = create(:folder, user: owner, name: "Reports", is_public: true)
+      public_child = create(:folder, user: owner, name: "Q1", parent: reports, is_public: true)
+      create(:folder, user: owner, name: "Secret", parent: reports, is_public: false)
+      public_file("summary.txt", "public summary", folder: reports)
+      public_file("draft.txt", "hidden", folder: reports).update!(is_public: false)
+      public_file("jan.txt", "january", folder: public_child)
+
+      expect do
+        post "/api/v1/shared/folders/#{reports.id}/copy"
+      end.to change(user.folders, :count).by(2) # Reports + Q1 (not Secret)
+
+      expect(response).to have_http_status(:created)
+      copied = user.folders.find_by!(name: "Reports", parent_id: nil)
+      expect(copied.documents.map(&:name)).to contain_exactly("summary.txt")
+      q1 = user.folders.find_by!(name: "Q1", parent: copied)
+      expect(q1.documents.map(&:name)).to contain_exactly("jan.txt")
+      expect(user.documents.find_by(name: "draft.txt")).to be_nil
+    end
+
+    it "copies into a chosen destination folder" do
+      sign_in_user
+      destination = create(:folder, user: user, name: "Inbox")
+      source = create(:folder, user: owner, name: "Reports", is_public: true)
+
+      post "/api/v1/shared/folders/#{source.id}/copy", params: { folder_id: destination.id }
+
+      expect(response).to have_http_status(:created)
+      expect(user.folders.find_by!(name: "Reports").parent).to eq(destination)
+    end
+
+    it "returns 404 for a private folder" do
+      sign_in_user
+      private_folder = create(:folder, user: owner, is_public: false)
+
+      post "/api/v1/shared/folders/#{private_folder.id}/copy"
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
 end

@@ -16,6 +16,7 @@ import {
 } from '@mantine/core'
 import {
   IconAlertCircle,
+  IconCopy,
   IconDownload,
   IconFile,
   IconFolder,
@@ -23,6 +24,7 @@ import {
 } from '@tabler/icons-react'
 import { filesApi } from '../api/client'
 import { formatBytes } from '../utils/format'
+import CopyToModal from '../components/CopyToModal'
 
 function displayName(user) {
   return user.name || user.email
@@ -36,6 +38,9 @@ function SharedPage() {
   const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [copyTarget, setCopyTarget] = useState(null)
+  const [copying, setCopying] = useState(false)
+  const [notice, setNotice] = useState(null)
 
   const parentId = path.length > 0 ? path[path.length - 1].id : null
 
@@ -83,6 +88,28 @@ function SharedPage() {
     setSelectedUser(null)
     setPath([])
   }
+
+  const handleConfirmCopy = useCallback(
+    async (destinationFolderId) => {
+      if (!copyTarget) return
+      setCopying(true)
+      setError(null)
+      try {
+        if (copyTarget.type === 'folder') {
+          await filesApi.copySharedFolder(copyTarget.id, destinationFolderId)
+        } else {
+          await filesApi.copySharedDocument(copyTarget.id, destinationFolderId)
+        }
+        setNotice(`Copied "${copyTarget.name}" to your library.`)
+        setCopyTarget(null)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setCopying(false)
+      }
+    },
+    [copyTarget],
+  )
 
   if (!selectedUser) {
     return (
@@ -179,6 +206,18 @@ function SharedPage() {
         </Alert>
       )}
 
+      {notice && (
+        <Alert
+          color="green"
+          title="Copied"
+          withCloseButton
+          closeButtonLabel="Dismiss"
+          onClose={() => setNotice(null)}
+        >
+          {notice}
+        </Alert>
+      )}
+
       <Card withBorder padding="lg" mih={160}>
         {loading ? (
           <Center py="xl">
@@ -195,7 +234,7 @@ function SharedPage() {
                 <Table.Th>Name</Table.Th>
                 <Table.Th>Type</Table.Th>
                 <Table.Th>Size</Table.Th>
-                <Table.Th w={60} />
+                <Table.Th w={110} />
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -215,17 +254,31 @@ function SharedPage() {
                   <Table.Td>Folder</Table.Td>
                   <Table.Td>—</Table.Td>
                   <Table.Td ta="right">
-                    <Tooltip label="Download" withArrow>
-                      <ActionIcon
-                        component="a"
-                        href={filesApi.sharedFolderDownloadUrl(folder.id)}
-                        variant="subtle"
-                        aria-label={`Download ${folder.name}`}
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <IconDownload size={16} />
-                      </ActionIcon>
-                    </Tooltip>
+                    <Group gap="xs" justify="flex-end" wrap="nowrap">
+                      <Tooltip label="Copy to my files" withArrow>
+                        <ActionIcon
+                          variant="subtle"
+                          aria-label={`Copy ${folder.name}`}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            setCopyTarget({ type: 'folder', id: folder.id, name: folder.name })
+                          }}
+                        >
+                          <IconCopy size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <Tooltip label="Download" withArrow>
+                        <ActionIcon
+                          component="a"
+                          href={filesApi.sharedFolderDownloadUrl(folder.id)}
+                          variant="subtle"
+                          aria-label={`Download ${folder.name}`}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <IconDownload size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
                   </Table.Td>
                 </Table.Tr>
               ))}
@@ -240,16 +293,29 @@ function SharedPage() {
                   <Table.Td>{document.content_type || 'File'}</Table.Td>
                   <Table.Td>{formatBytes(document.byte_size)}</Table.Td>
                   <Table.Td ta="right">
-                    <Tooltip label="Download" withArrow>
-                      <ActionIcon
-                        component="a"
-                        href={filesApi.sharedDocumentDownloadUrl(document.id)}
-                        variant="subtle"
-                        aria-label={`Download ${document.name}`}
-                      >
-                        <IconDownload size={16} />
-                      </ActionIcon>
-                    </Tooltip>
+                    <Group gap="xs" justify="flex-end" wrap="nowrap">
+                      <Tooltip label="Copy to my files" withArrow>
+                        <ActionIcon
+                          variant="subtle"
+                          aria-label={`Copy ${document.name}`}
+                          onClick={() =>
+                            setCopyTarget({ type: 'document', id: document.id, name: document.name })
+                          }
+                        >
+                          <IconCopy size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <Tooltip label="Download" withArrow>
+                        <ActionIcon
+                          component="a"
+                          href={filesApi.sharedDocumentDownloadUrl(document.id)}
+                          variant="subtle"
+                          aria-label={`Download ${document.name}`}
+                        >
+                          <IconDownload size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
                   </Table.Td>
                 </Table.Tr>
               ))}
@@ -257,6 +323,14 @@ function SharedPage() {
           </Table>
         )}
       </Card>
+
+      <CopyToModal
+        opened={copyTarget != null}
+        targetName={copyTarget?.name || ''}
+        loading={copying}
+        onClose={() => setCopyTarget(null)}
+        onConfirm={handleConfirmCopy}
+      />
     </Stack>
   )
 }
