@@ -162,4 +162,37 @@ RSpec.describe "Api::V1::Folders", type: :request do
       expect(response).to have_http_status(:not_found)
     end
   end
+
+  describe "DELETE /api/v1/folders/:id" do
+    it "returns 401 when not signed in" do
+      folder = create(:folder)
+      delete "/api/v1/folders/#{folder.id}"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it "hard-deletes the folder while sending its files to the trash" do
+      sign_in_user
+      folder = create(:folder, user: user, name: "Reports")
+      document = create(:document, user: user, folder: folder, name: "in-folder.txt")
+
+      delete "/api/v1/folders/#{folder.id}"
+
+      expect(response).to have_http_status(:no_content)
+      expect(Folder.exists?(folder.id)).to be(false)
+
+      document.reload
+      expect(document.folder_id).to be_nil
+      expect(document).to be_trashed
+      expect(document.deleted_path).to eq("Reports")
+    end
+
+    it "returns 404 for a folder owned by someone else" do
+      sign_in_user
+      other = create(:folder)
+
+      delete "/api/v1/folders/#{other.id}"
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
 end

@@ -194,6 +194,56 @@ describe('filesApi', () => {
     )
   })
 
+  it('soft deletes a folder', async () => {
+    global.fetch.mockResolvedValue(
+      mockResponse({ status: 204, json: null, contentType: null }),
+    )
+
+    await filesApi.deleteFolder(4)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/folders/4',
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
+
+  it('soft deletes a document', async () => {
+    global.fetch.mockResolvedValue(
+      mockResponse({ status: 204, json: null, contentType: null }),
+    )
+
+    await filesApi.deleteDocument(5)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/documents/5',
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
+
+  it('lists the trash', async () => {
+    global.fetch.mockResolvedValue(
+      mockResponse({ json: { folders: [], documents: [] } }),
+    )
+
+    await filesApi.listTrash()
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/trash',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('restores a document', async () => {
+    global.fetch.mockResolvedValue(mockResponse({ json: { document: { id: 5 } } }))
+
+    await filesApi.restoreDocument(5)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/documents/5/restore',
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
   it('uploads a file as multipart form data', async () => {
     global.fetch.mockResolvedValue(
       mockResponse({ status: 201, json: { document: { id: 1, name: 'a.txt' } } }),

@@ -19,4 +19,33 @@ class Folder < ApplicationRecord
     end
     chain
   end
+
+  # Slash-separated path from the root, e.g. "Projects/2026/Reports".
+  def path
+    self_and_ancestors.map(&:name).join("/")
+  end
+
+  def self_and_descendants
+    [ self ] + children.flat_map(&:self_and_descendants)
+  end
+
+  # Hard-deletes the folder subtree, but first soft-deletes the documents it
+  # holds and records their old path so they can be restored later. Detaching
+  # each document (folder_id: nil) is what keeps it out of the folder's
+  # `dependent: :destroy` cascade below.
+  def destroy_and_trash_files!(time = Time.current)
+    transaction do
+      path_by_id = self_and_descendants.to_h { |folder| [ folder.id, folder.path ] }
+
+      Document.where(folder_id: path_by_id.keys).find_each do |document|
+        document.update!(
+          deleted_at: document.deleted_at || time,
+          deleted_path: path_by_id[document.folder_id],
+          folder_id: nil
+        )
+      end
+
+      destroy!
+    end
+  end
 end

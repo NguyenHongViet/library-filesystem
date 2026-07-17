@@ -46,6 +46,36 @@ describe('AdminLayout', () => {
     expect(toggle).toBeInTheDocument()
   })
 
+  it('renders navigation links and reports the target on click', async () => {
+    authApi.me.mockRejectedValue(new Error('Unauthorized'))
+    const user = userEvent.setup()
+    const onNavigate = vi.fn()
+
+    renderWithProviders(
+      <AdminLayout view="files" onNavigate={onNavigate}>
+        <div>content</div>
+      </AdminLayout>,
+    )
+
+    await user.click(screen.getByRole('button', { name: /trash/i }))
+    expect(onNavigate).toHaveBeenCalledWith('trash')
+
+    await user.click(screen.getByRole('button', { name: /my files/i }))
+    expect(onNavigate).toHaveBeenCalledWith('files')
+  })
+
+  it('omits navigation links when no onNavigate handler is given', () => {
+    authApi.me.mockRejectedValue(new Error('Unauthorized'))
+
+    renderWithProviders(
+      <AdminLayout>
+        <div>content</div>
+      </AdminLayout>,
+    )
+
+    expect(screen.queryByRole('button', { name: /trash/i })).not.toBeInTheDocument()
+  })
+
   it('shows the signed-in user and a sign out button', async () => {
     authApi.me.mockResolvedValue({ user: { id: 1, email: 'admin@example.com', name: 'Admin User' } })
     authApi.logout.mockResolvedValue(null)

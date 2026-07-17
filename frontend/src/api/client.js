@@ -73,6 +73,10 @@ export const filesApi = {
     request(`/folders/${id}`, { method: 'PATCH', body: { is_public: isPublic } }),
   setDocumentPublic: (id, isPublic) =>
     request(`/documents/${id}`, { method: 'PATCH', body: { is_public: isPublic } }),
+  deleteFolder: (id) => request(`/folders/${id}`, { method: 'DELETE' }),
+  deleteDocument: (id) => request(`/documents/${id}`, { method: 'DELETE' }),
+  listTrash: () => request('/trash'),
+  restoreDocument: (id) => request(`/documents/${id}/restore`, { method: 'POST' }),
   uploadDocument: (file, folderId) => {
     const formData = new FormData()
     formData.append('file', file)

@@ -1,11 +1,14 @@
+import { useState } from 'react'
 import { Center, Loader } from '@mantine/core'
 import AdminLayout from './components/AdminLayout'
 import LoginPage from './pages/LoginPage'
 import HomePage from './pages/HomePage'
+import TrashPage from './pages/TrashPage'
 import { useAuth } from './auth/AuthContext'
 
 function App() {
   const { user, loading } = useAuth()
+  const [view, setView] = useState('files')
 
   if (loading) {
     return (
@@ -20,8 +23,8 @@ function App() {
   }
 
   return (
-    <AdminLayout>
-      <HomePage />
+    <AdminLayout view={view} onNavigate={setView}>
+      {view === 'trash' ? <TrashPage /> : <HomePage />}
     </AdminLayout>
   )
 }

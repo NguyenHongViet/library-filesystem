@@ -12,6 +12,7 @@ vi.mock('./api/client', () => ({
   filesApi: {
     listFolders: vi.fn(),
     listDocuments: vi.fn(),
+    listTrash: vi.fn(),
     uploadDocument: vi.fn(),
   },
 }))
@@ -21,6 +22,7 @@ describe('App', () => {
     vi.clearAllMocks()
     filesApi.listFolders.mockResolvedValue({ folders: [] })
     filesApi.listDocuments.mockResolvedValue({ documents: [] })
+    filesApi.listTrash.mockResolvedValue({ folders: [], documents: [] })
   })
 
   it('shows the login page when unauthenticated', async () => {
@@ -52,6 +54,29 @@ describe('App', () => {
     renderWithProviders(<App />)
 
     expect(await screen.findByText('noname@example.com')).toBeInTheDocument()
+  })
+
+  it('navigates to the trash and back', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    const user = userEvent.setup()
+    authApi.me.mockResolvedValue({
+      user: { id: 1, email: 'admin@example.com', name: 'Admin User' },
+    })
+
+    renderWithProviders(<App />)
+
+    await screen.findByRole('heading', { level: 2, name: 'My files' })
+
+    await user.click(screen.getByRole('button', { name: /^trash/i }))
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Trash' }),
+    ).toBeInTheDocument()
+    expect(filesApi.listTrash).toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: /my files/i }))
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'My files' }),
+    ).toBeInTheDocument()
   })
 
   it('signs the user out', async () => {

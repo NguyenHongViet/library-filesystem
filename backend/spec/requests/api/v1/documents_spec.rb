@@ -172,4 +172,70 @@ RSpec.describe "Api::V1::Documents", type: :request do
       expect(response).to have_http_status(:not_found)
     end
   end
+
+  describe "DELETE /api/v1/documents/:id" do
+    it "returns 401 when not signed in" do
+      document = create(:document)
+      delete "/api/v1/documents/#{document.id}"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it "soft deletes the document and hides it from the listing" do
+      sign_in_user
+      document = create(:document, user: user)
+
+      delete "/api/v1/documents/#{document.id}"
+
+      expect(response).to have_http_status(:no_content)
+      expect(document.reload).to be_trashed
+
+      get "/api/v1/documents"
+      expect(JSON.parse(response.body)["documents"]).to be_empty
+    end
+
+    it "returns 404 for a document owned by someone else" do
+      sign_in_user
+      other = create(:document)
+
+      delete "/api/v1/documents/#{other.id}"
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "POST /api/v1/documents/:id/restore" do
+    it "restores a trashed document" do
+      sign_in_user
+      document = create(:document, user: user)
+      document.soft_delete!
+
+      post "/api/v1/documents/#{document.id}/restore"
+
+      expect(response).to have_http_status(:ok)
+      expect(document.reload).not_to be_trashed
+    end
+
+    it "rebuilds the folder path when the file's folder was deleted" do
+      sign_in_user
+      folder = create(:folder, user: user, name: "Reports")
+      document = create(:document, user: user, folder: folder)
+      delete "/api/v1/folders/#{folder.id}"
+
+      post "/api/v1/documents/#{document.id}/restore"
+
+      expect(response).to have_http_status(:ok)
+      document.reload
+      expect(document).not_to be_trashed
+      expect(document.folder.path).to eq("Reports")
+    end
+
+    it "returns 404 when the document is not in the trash" do
+      sign_in_user
+      document = create(:document, user: user)
+
+      post "/api/v1/documents/#{document.id}/restore"
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
 end

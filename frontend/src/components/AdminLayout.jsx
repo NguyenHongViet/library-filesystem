@@ -8,7 +8,7 @@ import {
   Tooltip,
   useMantineColorScheme,
 } from '@mantine/core'
-import { IconLogout, IconMoon, IconSun } from '@tabler/icons-react'
+import { IconFiles, IconLogout, IconMoon, IconSun, IconTrash } from '@tabler/icons-react'
 import { useAuth } from '../auth/AuthContext'
 
 function ColorSchemeToggle() {
@@ -29,14 +29,36 @@ function ColorSchemeToggle() {
   )
 }
 
-function AdminLayout({ children }) {
+function AdminLayout({ children, view, onNavigate }) {
   const { user, logout } = useAuth()
 
   return (
     <AppShell header={{ height: 60 }} padding="md">
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
-          <Title order={4}>App</Title>
+          <Group gap="lg">
+            <Title order={4}>App</Title>
+            {onNavigate && (
+              <Group gap="xs">
+                <Button
+                  variant={view === 'trash' ? 'subtle' : 'light'}
+                  size="xs"
+                  leftSection={<IconFiles size={16} />}
+                  onClick={() => onNavigate('files')}
+                >
+                  My files
+                </Button>
+                <Button
+                  variant={view === 'trash' ? 'light' : 'subtle'}
+                  size="xs"
+                  leftSection={<IconTrash size={16} />}
+                  onClick={() => onNavigate('trash')}
+                >
+                  Trash
+                </Button>
+              </Group>
+            )}
+          </Group>
           <Group gap="sm">
             {user && (
               <Text size="sm" c="dimmed">

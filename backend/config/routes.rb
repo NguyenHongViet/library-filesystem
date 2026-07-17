@@ -15,8 +15,11 @@ Rails.application.routes.draw do
       delete "logout" => "sessions#destroy"
       get "me" => "sessions#show"
 
-      resources :documents, only: [ :index, :create, :update ]
-      resources :folders, only: [ :index, :show, :create, :update ]
+      resources :documents, only: [ :index, :create, :update, :destroy ] do
+        member { post :restore }
+      end
+      resources :folders, only: [ :index, :show, :create, :update, :destroy ]
+      get "trash" => "trash#index"
     end
   end
 

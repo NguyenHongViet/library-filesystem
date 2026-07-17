@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_17_070000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_17_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -59,6 +59,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_17_070000) do
     t.string "content_type"
     t.bigint "copied_from_id"
     t.datetime "created_at", null: false
+    t.datetime "deleted_at"
+    t.string "deleted_path"
     t.text "description"
     t.bigint "folder_id"
     t.boolean "is_public", default: false, null: false
@@ -66,6 +68,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_17_070000) do
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["copied_from_id"], name: "index_documents_on_copied_from_id"
+    t.index ["deleted_at"], name: "index_documents_on_deleted_at"
     t.index ["folder_id"], name: "index_documents_on_folder_id"
     t.index ["is_public"], name: "index_documents_on_is_public"
     t.index ["user_id"], name: "index_documents_on_user_id"

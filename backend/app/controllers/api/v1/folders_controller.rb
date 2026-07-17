@@ -4,7 +4,9 @@ module Api
       before_action :authenticate_user!
 
       def index
-        folders = current_user.folders.where(parent_id: params[:parent_id].presence).order(:name)
+        folders = current_user.folders
+          .where(parent_id: params[:parent_id].presence)
+          .order(:name)
         render json: { folders: folders.map { |folder| folder_json(folder) } }
       end
 
@@ -46,6 +48,16 @@ module Api
         else
           render json: { errors: folder.errors.full_messages }, status: :unprocessable_content
         end
+      end
+
+      # Folders are hard-deleted; the files they contain are moved to the trash
+      # with their old path preserved.
+      def destroy
+        folder = current_user.folders.find(params[:id])
+        folder.destroy_and_trash_files!
+        head :no_content
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: "Folder not found." }, status: :not_found
       end
 
       private

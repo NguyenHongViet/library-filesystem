@@ -14,6 +14,8 @@ vi.mock('../api/client', () => ({
     moveDocument: vi.fn(),
     setFolderPublic: vi.fn(),
     setDocumentPublic: vi.fn(),
+    deleteFolder: vi.fn(),
+    deleteDocument: vi.fn(),
     uploadDocument: vi.fn(),
   },
 }))
@@ -359,6 +361,74 @@ describe('HomePage', () => {
     await screen.findByText('Projects')
 
     await user.click(screen.getByRole('button', { name: 'Private' }))
+
+    expect(await screen.findByText('Folder not found.')).toBeInTheDocument()
+  })
+
+  it('moves a document to the trash and refreshes the list', async () => {
+    const user = userEvent.setup()
+    filesApi.listDocuments.mockResolvedValueOnce({
+      documents: [
+        { id: 8, name: 'doc.txt', content_type: 'text/plain', byte_size: 4, is_public: false },
+      ],
+    })
+    filesApi.deleteDocument.mockResolvedValue(null)
+    filesApi.listDocuments.mockResolvedValueOnce({ documents: [] })
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText('doc.txt')
+
+    await user.click(screen.getByRole('button', { name: 'Delete doc.txt' }))
+
+    expect(filesApi.deleteDocument).toHaveBeenCalledWith(8)
+    await waitFor(() => expect(filesApi.listDocuments).toHaveBeenCalledTimes(2))
+  })
+
+  it('moves a folder to the trash without navigating into it', async () => {
+    const user = userEvent.setup()
+    filesApi.listFolders.mockResolvedValueOnce({
+      folders: [{ id: 1, name: 'Projects', is_public: false }],
+    })
+    filesApi.deleteFolder.mockResolvedValue(null)
+    filesApi.listFolders.mockResolvedValueOnce({ folders: [] })
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText('Projects')
+
+    await user.click(screen.getByRole('button', { name: 'Delete Projects' }))
+
+    expect(filesApi.deleteFolder).toHaveBeenCalledWith(1)
+    expect(filesApi.getFolder).not.toHaveBeenCalled()
+  })
+
+  it('shows an error when deleting fails', async () => {
+    const user = userEvent.setup()
+    filesApi.listDocuments.mockResolvedValue({
+      documents: [
+        { id: 8, name: 'doc.txt', content_type: 'text/plain', byte_size: 4, is_public: false },
+      ],
+    })
+    filesApi.deleteDocument.mockRejectedValue(new Error('Document not found.'))
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText('doc.txt')
+
+    await user.click(screen.getByRole('button', { name: 'Delete doc.txt' }))
+
+    expect(await screen.findByText('Document not found.')).toBeInTheDocument()
+  })
+
+  it('shows an error when deleting a folder fails', async () => {
+    const user = userEvent.setup()
+    filesApi.listFolders.mockResolvedValue({
+      folders: [{ id: 1, name: 'Projects', is_public: false }],
+    })
+    filesApi.deleteFolder.mockRejectedValue(new Error('Folder not found.'))
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText('Projects')
+
+    await user.click(screen.getByRole('button', { name: 'Delete Projects' }))
 
     expect(await screen.findByText('Folder not found.')).toBeInTheDocument()
   })

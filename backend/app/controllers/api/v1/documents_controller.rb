@@ -5,12 +5,12 @@ module Api
       before_action :set_folder
 
       def index
-        documents = current_user.documents.where(folder: @folder).order(:name)
+        documents = current_user.documents.kept.where(folder: @folder).order(:name)
         render json: { documents: documents.map { |document| document_json(document) } }
       end
 
       def update
-        document = current_user.documents.find(params[:id])
+        document = current_user.documents.kept.find(params[:id])
 
         attributes = {}
         attributes[:folder] = @folder if params.key?(:folder_id)
@@ -46,6 +46,22 @@ module Api
         end
       end
 
+      def destroy
+        document = current_user.documents.kept.find(params[:id])
+        document.soft_delete!
+        head :no_content
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: "Document not found." }, status: :not_found
+      end
+
+      def restore
+        document = current_user.documents.trashed.find(params[:id])
+        document.restore!
+        render json: { document: document_json(document) }
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: "Document not found." }, status: :not_found
+      end
+
       private
 
       # A blank folder_id means the user's root folder.
@@ -65,6 +81,8 @@ module Api
           byte_size: document.byte_size,
           is_public: document.is_public,
           folder_id: document.folder_id,
+          deleted_at: document.deleted_at&.iso8601,
+          deleted_path: document.deleted_path,
           created_at: document.created_at.iso8601,
           updated_at: document.updated_at.iso8601
         }

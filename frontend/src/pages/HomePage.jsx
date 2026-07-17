@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  ActionIcon,
   Alert,
   Anchor,
   Breadcrumbs,
@@ -14,6 +15,7 @@ import {
   Text,
   TextInput,
   Title,
+  Tooltip,
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import {
@@ -21,6 +23,7 @@ import {
   IconFile,
   IconFolder,
   IconFolderPlus,
+  IconTrash,
   IconUpload,
 } from '@tabler/icons-react'
 import { filesApi } from '../api/client'
@@ -152,6 +155,32 @@ function HomePage() {
     }
   }, [])
 
+  const handleDeleteFolder = useCallback(
+    async (folder) => {
+      setError(null)
+      try {
+        await filesApi.deleteFolder(folder.id)
+        await load()
+      } catch (err) {
+        setError(err.message)
+      }
+    },
+    [load],
+  )
+
+  const handleDeleteDocument = useCallback(
+    async (document) => {
+      setError(null)
+      try {
+        await filesApi.deleteDocument(document.id)
+        await load()
+      } catch (err) {
+        setError(err.message)
+      }
+    },
+    [load],
+  )
+
   const isEmpty = folders.length === 0 && documents.length === 0
 
   return (
@@ -228,6 +257,7 @@ function HomePage() {
                   <Table.Th>Type</Table.Th>
                   <Table.Th>Size</Table.Th>
                   <Table.Th ta="right">Sharing</Table.Th>
+                  <Table.Th w={60} />
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -270,6 +300,21 @@ function HomePage() {
                         onToggle={() => handleToggleFolderPublic(folder)}
                       />
                     </Table.Td>
+                    <Table.Td ta="right">
+                      <Tooltip label="Move to trash" withArrow>
+                        <ActionIcon
+                          variant="subtle"
+                          color="red"
+                          aria-label={`Delete ${folder.name}`}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            handleDeleteFolder(folder)
+                          }}
+                        >
+                          <IconTrash size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Table.Td>
                   </Table.Tr>
                 ))}
                 {documents.map((document) => (
@@ -299,6 +344,18 @@ function HomePage() {
                         isPublic={document.is_public}
                         onToggle={() => handleToggleDocumentPublic(document)}
                       />
+                    </Table.Td>
+                    <Table.Td ta="right">
+                      <Tooltip label="Move to trash" withArrow>
+                        <ActionIcon
+                          variant="subtle"
+                          color="red"
+                          aria-label={`Delete ${document.name}`}
+                          onClick={() => handleDeleteDocument(document)}
+                        >
+                          <IconTrash size={16} />
+                        </ActionIcon>
+                      </Tooltip>
                     </Table.Td>
                   </Table.Tr>
                 ))}
