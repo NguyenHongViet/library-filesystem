@@ -1,3 +1,5 @@
+require "zip"
+
 module Api
   module V1
     class SharedController < ApplicationController
@@ -45,7 +47,37 @@ module Api
           disposition: "attachment"
       end
 
+      # Downloads a public folder as a ZIP, including only the public files and
+      # subfolders that a viewer is allowed to see.
+      def download_folder
+        folder = Folder.public_folders.find_by(id: params[:id])
+        return render json: { error: "Folder not found." }, status: :not_found if folder.nil?
+
+        buffer = Zip::OutputStream.write_buffer do |zip|
+          add_public_folder_to_archive(zip, folder, "#{folder.name}/")
+        end
+        send_data buffer.string,
+          filename: "#{folder.name}.zip",
+          type: "application/zip",
+          disposition: "attachment"
+      end
+
       private
+
+      def add_public_folder_to_archive(zip, folder, prefix)
+        zip.put_next_entry(prefix)
+
+        folder.documents.public_documents.kept.order(:name).find_each do |document|
+          next unless document.file.attached?
+
+          zip.put_next_entry("#{prefix}#{document.name}")
+          zip.write(document.file.download)
+        end
+
+        folder.children.public_folders.order(:name).find_each do |child|
+          add_public_folder_to_archive(zip, child, "#{prefix}#{child.name}/")
+        end
+      end
 
       def owner_json(owner)
         { id: owner.id, name: owner.name, email: owner.email }

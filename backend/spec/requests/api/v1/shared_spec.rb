@@ -150,4 +150,58 @@ RSpec.describe "Api::V1::Shared", type: :request do
       expect(response).to have_http_status(:not_found)
     end
   end
+
+  describe "GET /api/v1/shared/folders/:id/download" do
+    let(:owner) { create(:user) }
+
+    def add_public_file(name, content, folder:, public: true)
+      document = build(:document, user: owner, name: name, folder: folder, is_public: public, content_type: "text/plain")
+      document.file.attach(io: StringIO.new(content), filename: name, content_type: "text/plain")
+      document.save!
+      document
+    end
+
+    def zip_contents(body)
+      files = {}
+      Zip::File.open_buffer(StringIO.new(body)) do |zip|
+        zip.each { |entry| files[entry.name] = entry.directory? ? nil : entry.get_input_stream.read }
+      end
+      files
+    end
+
+    it "returns 401 when not signed in" do
+      folder = create(:folder, user: owner, is_public: true)
+      get "/api/v1/shared/folders/#{folder.id}/download"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it "zips a public folder with only its public contents, keeping structure" do
+      sign_in_user
+      reports = create(:folder, user: owner, name: "Reports", is_public: true)
+      public_child = create(:folder, user: owner, name: "Public Q1", parent: reports, is_public: true)
+      create(:folder, user: owner, name: "Secret", parent: reports, is_public: false)
+      add_public_file("summary.txt", "public summary", folder: reports)
+      add_public_file("draft.txt", "hidden draft", folder: reports, public: false)
+      add_public_file("jan.txt", "january", folder: public_child)
+
+      get "/api/v1/shared/folders/#{reports.id}/download"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.headers["Content-Disposition"]).to include("Reports.zip")
+      files = zip_contents(response.body)
+      expect(files["Reports/summary.txt"]).to eq("public summary")
+      expect(files["Reports/Public Q1/jan.txt"]).to eq("january")
+      expect(files.keys).not_to include("Reports/draft.txt")
+      expect(files.keys).not_to include("Reports/Secret/")
+    end
+
+    it "returns 404 for a private folder" do
+      sign_in_user
+      private_folder = create(:folder, user: owner, is_public: false)
+
+      get "/api/v1/shared/folders/#{private_folder.id}/download"
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
 end

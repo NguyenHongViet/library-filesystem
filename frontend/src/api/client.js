@@ -70,6 +70,8 @@ export const filesApi = {
     `/api/v1/documents/${id}/versions/${versionId}/download`,
   listFolders: (parentId) =>
     request(`/folders${query({ parent_id: parentId })}`),
+  folderDownloadUrl: (id) => `/api/v1/folders/${id}/download`,
+  rootDownloadUrl: () => '/api/v1/folders/download_root',
   getFolder: (id) => request(`/folders/${id}`),
   createFolder: (name, parentId) =>
     request('/folders', { method: 'POST', body: { name, parent_id: parentId } }),
@@ -86,6 +88,7 @@ export const filesApi = {
   listSharedEntries: (userId, parentId) =>
     request(`/shared/users/${userId}/entries${query({ parent_id: parentId })}`),
   sharedDocumentDownloadUrl: (id) => `/api/v1/shared/documents/${id}/download`,
+  sharedFolderDownloadUrl: (id) => `/api/v1/shared/folders/${id}/download`,
   restoreDocument: (id) => request(`/documents/${id}/restore`, { method: 'POST' }),
   uploadDocument: (file, folderId) => {
     const formData = new FormData()

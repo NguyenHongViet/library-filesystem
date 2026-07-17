@@ -23,11 +23,15 @@ Rails.application.routes.draw do
           get "versions/:version_id/download", action: :download_version
         end
       end
-      resources :folders, only: [ :index, :show, :create, :update, :destroy ]
+      resources :folders, only: [ :index, :show, :create, :update, :destroy ] do
+        member { get :download }
+        collection { get :download_root }
+      end
       get "trash" => "trash#index"
       get "shared/users" => "shared#users"
       get "shared/users/:user_id/entries" => "shared#entries"
       get "shared/documents/:id/download" => "shared#download_document"
+      get "shared/folders/:id/download" => "shared#download_folder"
     end
   end
 

@@ -15,6 +15,8 @@ vi.mock('./api/client', () => ({
     listTrash: vi.fn(),
     listSharedUsers: vi.fn(),
     uploadDocument: vi.fn(),
+    folderDownloadUrl: (id) => `/api/v1/folders/${id}/download`,
+    rootDownloadUrl: () => '/api/v1/folders/download_root',
   },
 }))
 

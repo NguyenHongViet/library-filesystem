@@ -8,6 +8,21 @@ RSpec.describe "Api::V1::Folders", type: :request do
     post "/api/v1/login", params: { user: { email: account.email, password: password } }
   end
 
+  def add_file(owner, name, content, folder: nil)
+    document = build(:document, user: owner, name: name, folder: folder, content_type: "text/plain")
+    document.file.attach(io: StringIO.new(content), filename: name, content_type: "text/plain")
+    document.save!
+    document
+  end
+
+  def zip_contents(body)
+    files = {}
+    Zip::File.open_buffer(StringIO.new(body)) do |zip|
+      zip.each { |entry| files[entry.name] = entry.directory? ? nil : entry.get_input_stream.read }
+    end
+    files
+  end
+
   describe "GET /api/v1/folders" do
     it "returns 401 when not signed in" do
       get "/api/v1/folders"
@@ -193,6 +208,81 @@ RSpec.describe "Api::V1::Folders", type: :request do
       delete "/api/v1/folders/#{other.id}"
 
       expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "GET /api/v1/folders/:id/download" do
+    it "returns 401 when not signed in" do
+      folder = create(:folder)
+      get "/api/v1/folders/#{folder.id}/download"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it "zips the folder keeping its nested structure" do
+      sign_in_user
+      reports = create(:folder, user: user, name: "Reports")
+      q1 = create(:folder, user: user, name: "Q1", parent: reports)
+      add_file(user, "summary.txt", "top level", folder: reports)
+      add_file(user, "jan.txt", "january", folder: q1)
+
+      get "/api/v1/folders/#{reports.id}/download"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.headers["Content-Disposition"]).to include("Reports.zip")
+      files = zip_contents(response.body)
+      expect(files["Reports/summary.txt"]).to eq("top level")
+      expect(files["Reports/Q1/jan.txt"]).to eq("january")
+    end
+
+    it "includes empty subfolders as directory entries" do
+      sign_in_user
+      reports = create(:folder, user: user, name: "Reports")
+      create(:folder, user: user, name: "Empty", parent: reports)
+
+      get "/api/v1/folders/#{reports.id}/download"
+
+      files = zip_contents(response.body)
+      expect(files.keys).to include("Reports/Empty/")
+    end
+
+    it "excludes trashed files" do
+      sign_in_user
+      reports = create(:folder, user: user, name: "Reports")
+      kept = add_file(user, "kept.txt", "here", folder: reports)
+      add_file(user, "gone.txt", "removed", folder: reports).soft_delete!
+
+      get "/api/v1/folders/#{reports.id}/download"
+
+      files = zip_contents(response.body)
+      expect(files.keys).to include("Reports/kept.txt")
+      expect(files.keys).not_to include("Reports/gone.txt")
+      expect(kept).to be_persisted
+    end
+
+    it "returns 404 for a folder owned by someone else" do
+      sign_in_user
+      other = create(:folder)
+
+      get "/api/v1/folders/#{other.id}/download"
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "GET /api/v1/folders/download_root" do
+    it "zips the whole root library" do
+      sign_in_user
+      add_file(user, "loose.txt", "at root")
+      docs = create(:folder, user: user, name: "Docs")
+      add_file(user, "inside.txt", "in docs", folder: docs)
+
+      get "/api/v1/folders/download_root"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.headers["Content-Disposition"]).to include("My files.zip")
+      files = zip_contents(response.body)
+      expect(files["loose.txt"]).to eq("at root")
+      expect(files["Docs/inside.txt"]).to eq("in docs")
     end
   end
 end

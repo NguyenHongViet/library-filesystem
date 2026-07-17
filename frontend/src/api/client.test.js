@@ -128,10 +128,18 @@ describe('filesApi', () => {
     )
   })
 
-  it('builds a download URL for a shared document', () => {
+  it('builds download URLs for shared items', () => {
     expect(filesApi.sharedDocumentDownloadUrl(9)).toBe(
       '/api/v1/shared/documents/9/download',
     )
+    expect(filesApi.sharedFolderDownloadUrl(4)).toBe(
+      '/api/v1/shared/folders/4/download',
+    )
+  })
+
+  it('builds download URLs for a folder and the root', () => {
+    expect(filesApi.folderDownloadUrl(4)).toBe('/api/v1/folders/4/download')
+    expect(filesApi.rootDownloadUrl()).toBe('/api/v1/folders/download_root')
   })
 
   it('lists documents scoped to a folder', async () => {

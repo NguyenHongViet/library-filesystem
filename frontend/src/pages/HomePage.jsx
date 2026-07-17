@@ -228,6 +228,14 @@ function HomePage() {
         </Title>
         <Group gap="sm">
           <Button
+            component="a"
+            href={folderId ? filesApi.folderDownloadUrl(folderId) : filesApi.rootDownloadUrl()}
+            variant="default"
+            leftSection={<IconDownload size={16} />}
+          >
+            Download folder
+          </Button>
+          <Button
             variant="default"
             leftSection={<IconFolderPlus size={16} />}
             onClick={modal.open}
@@ -316,19 +324,32 @@ function HomePage() {
                       />
                     </Table.Td>
                     <Table.Td ta="right">
-                      <Tooltip label="Move to trash" withArrow>
-                        <ActionIcon
-                          variant="subtle"
-                          color="red"
-                          aria-label={`Delete ${folder.name}`}
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            handleDeleteFolder(folder)
-                          }}
-                        >
-                          <IconTrash size={16} />
-                        </ActionIcon>
-                      </Tooltip>
+                      <Group gap="xs" justify="flex-end" wrap="nowrap">
+                        <Tooltip label="Download" withArrow>
+                          <ActionIcon
+                            component="a"
+                            href={filesApi.folderDownloadUrl(folder.id)}
+                            variant="subtle"
+                            aria-label={`Download ${folder.name}`}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <IconDownload size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Move to trash" withArrow>
+                          <ActionIcon
+                            variant="subtle"
+                            color="red"
+                            aria-label={`Delete ${folder.name}`}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              handleDeleteFolder(folder)
+                            }}
+                          >
+                            <IconTrash size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                      </Group>
                     </Table.Td>
                   </Table.Tr>
                 ))}

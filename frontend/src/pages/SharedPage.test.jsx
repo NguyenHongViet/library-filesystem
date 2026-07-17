@@ -9,6 +9,7 @@ vi.mock('../api/client', () => ({
     listSharedUsers: vi.fn(),
     listSharedEntries: vi.fn(),
     sharedDocumentDownloadUrl: (id) => `/api/v1/shared/documents/${id}/download`,
+    sharedFolderDownloadUrl: (id) => `/api/v1/shared/folders/${id}/download`,
   },
 }))
 
@@ -65,6 +66,31 @@ describe('SharedPage', () => {
     expect(
       screen.getByRole('link', { name: 'Download public.txt' }),
     ).toHaveAttribute('href', '/api/v1/shared/documents/9/download')
+    expect(
+      screen.getByRole('link', { name: 'Download Reports' }),
+    ).toHaveAttribute('href', '/api/v1/shared/folders/5/download')
+  })
+
+  it('does not navigate into a shared folder when its download link is clicked', async () => {
+    const user = userEvent.setup()
+    filesApi.listSharedUsers.mockResolvedValue({
+      users: [{ id: 1, name: 'Alice', email: 'alice@example.com' }],
+    })
+    filesApi.listSharedEntries.mockResolvedValue({
+      folders: [{ id: 5, name: 'Reports', parent_id: null }],
+      documents: [],
+    })
+
+    renderWithMantine(<SharedPage />)
+    await user.click(await screen.findByText('Alice'))
+    await screen.findByText('Reports')
+    filesApi.listSharedEntries.mockClear()
+
+    const link = screen.getByRole('link', { name: 'Download Reports' })
+    link.addEventListener('click', (event) => event.preventDefault())
+    await user.click(link)
+
+    expect(filesApi.listSharedEntries).not.toHaveBeenCalled()
   })
 
   it('navigates into a shared folder and back through the breadcrumb', async () => {

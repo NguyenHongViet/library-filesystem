@@ -214,7 +214,19 @@ function SharedPage() {
                   </Table.Td>
                   <Table.Td>Folder</Table.Td>
                   <Table.Td>—</Table.Td>
-                  <Table.Td />
+                  <Table.Td ta="right">
+                    <Tooltip label="Download" withArrow>
+                      <ActionIcon
+                        component="a"
+                        href={filesApi.sharedFolderDownloadUrl(folder.id)}
+                        variant="subtle"
+                        aria-label={`Download ${folder.name}`}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <IconDownload size={16} />
+                      </ActionIcon>
+                    </Tooltip>
+                  </Table.Td>
                 </Table.Tr>
               ))}
               {documents.map((document) => (

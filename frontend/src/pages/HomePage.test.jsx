@@ -9,6 +9,8 @@ vi.mock('../api/client', () => ({
   filesApi: {
     listFolders: vi.fn(),
     listDocuments: vi.fn(),
+    folderDownloadUrl: (id) => `/api/v1/folders/${id}/download`,
+    rootDownloadUrl: () => '/api/v1/folders/download_root',
     getDocument: vi.fn(),
     restoreVersion: vi.fn(),
     documentDownloadUrl: (id) => `/api/v1/documents/${id}/download`,
@@ -401,6 +403,63 @@ describe('HomePage', () => {
     expect(
       await screen.findByRole('heading', { level: 2, name: 'My files' }),
     ).toBeInTheDocument()
+  })
+
+  it('links the header download button to the whole root at the top level', async () => {
+    renderWithMantine(<HomePage />)
+    await screen.findByText(
+      'This folder is empty. Drag files here or use the Upload button.',
+    )
+
+    expect(
+      screen.getByRole('link', { name: /download folder/i }),
+    ).toHaveAttribute('href', '/api/v1/folders/download_root')
+  })
+
+  it('links the header download button to the current folder when inside one', async () => {
+    const user = userEvent.setup()
+    filesApi.listFolders.mockResolvedValueOnce({ folders: [{ id: 1, name: 'Projects' }] })
+    filesApi.getFolder.mockResolvedValue({
+      folder: { id: 1, name: 'Projects' },
+      breadcrumb: [{ id: 1, name: 'Projects' }],
+    })
+
+    renderWithMantine(<HomePage />)
+    await user.click(await screen.findByText('Projects'))
+    await screen.findByRole('button', { name: 'My files' })
+
+    expect(
+      screen.getByRole('link', { name: /download folder/i }),
+    ).toHaveAttribute('href', '/api/v1/folders/1/download')
+  })
+
+  it('shows a download link on each folder row', async () => {
+    filesApi.listFolders.mockResolvedValue({
+      folders: [{ id: 1, name: 'Projects', is_public: false }],
+    })
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText('Projects')
+
+    expect(
+      screen.getByRole('link', { name: 'Download Projects' }),
+    ).toHaveAttribute('href', '/api/v1/folders/1/download')
+  })
+
+  it('does not navigate into a folder when its download link is clicked', async () => {
+    const user = userEvent.setup()
+    filesApi.listFolders.mockResolvedValue({
+      folders: [{ id: 1, name: 'Projects', is_public: false }],
+    })
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText('Projects')
+
+    const link = screen.getByRole('link', { name: 'Download Projects' })
+    link.addEventListener('click', (event) => event.preventDefault())
+    await user.click(link)
+
+    expect(filesApi.getFolder).not.toHaveBeenCalled()
   })
 
   it('shows a download link on each file row', async () => {
