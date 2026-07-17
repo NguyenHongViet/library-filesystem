@@ -23,9 +23,51 @@ async function request(path, { method = 'GET', body } = {}) {
   return data
 }
 
+async function upload(path, formData) {
+  const response = await fetch(`/api/v1${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  })
+
+  const isJson = response.headers
+    .get('content-type')
+    ?.includes('application/json')
+  const data = isJson ? await response.json() : null
+
+  if (!response.ok) {
+    const message = data?.errors?.join(' ') || data?.error || 'Upload failed. Please try again.'
+    const error = new Error(message)
+    error.status = response.status
+    throw error
+  }
+
+  return data
+}
+
 export const authApi = {
   login: (email, password) =>
     request('/login', { method: 'POST', body: { user: { email, password } } }),
   logout: () => request('/logout', { method: 'DELETE' }),
   me: () => request('/me'),
+}
+
+function query(params) {
+  const search = new URLSearchParams(
+    Object.entries(params).filter(([, value]) => value != null),
+  ).toString()
+  return search ? `?${search}` : ''
+}
+
+export const filesApi = {
+  listDocuments: (folderId) =>
+    request(`/documents${query({ folder_id: folderId })}`),
+  listFolders: (parentId) =>
+    request(`/folders${query({ parent_id: parentId })}`),
+  uploadDocument: (file, folderId) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (folderId != null) formData.append('folder_id', folderId)
+    return upload('/documents', formData)
+  },
 }

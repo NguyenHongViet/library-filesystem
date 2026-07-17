@@ -2,6 +2,10 @@
 # Test coverage reports
 /coverage/
 
+# Active Storage local disk service — user-uploaded blobs in development.
+/storage/*
+!/storage/.keep
+
 # Ignore the tmp directory and all its subdirectories, keeping placeholders.
 /tmp/*
 !/tmp/.keep

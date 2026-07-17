@@ -14,6 +14,9 @@ Rails.application.routes.draw do
       post "login" => "sessions#create"
       delete "logout" => "sessions#destroy"
       get "me" => "sessions#show"
+
+      resources :documents, only: [ :index, :create ]
+      resources :folders, only: [ :index ]
     end
   end
 

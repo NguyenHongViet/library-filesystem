@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { authApi } from './client'
+import { authApi, filesApi } from './client'
 
 function mockResponse({ ok = true, status = 200, json = null, contentType = 'application/json' }) {
   return {
@@ -72,5 +72,101 @@ describe('authApi', () => {
     )
 
     await expect(authApi.me()).rejects.toThrow('Something went wrong. Please try again.')
+  })
+})
+
+describe('filesApi', () => {
+  beforeEach(() => {
+    global.fetch = vi.fn()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('lists root documents without query params', async () => {
+    global.fetch.mockResolvedValue(mockResponse({ json: { documents: [] } }))
+
+    await filesApi.listDocuments()
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/documents',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('lists documents scoped to a folder', async () => {
+    global.fetch.mockResolvedValue(mockResponse({ json: { documents: [] } }))
+
+    await filesApi.listDocuments(7)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/documents?folder_id=7',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('lists root folders', async () => {
+    global.fetch.mockResolvedValue(mockResponse({ json: { folders: [] } }))
+
+    await filesApi.listFolders()
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/folders',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('uploads a file as multipart form data', async () => {
+    global.fetch.mockResolvedValue(
+      mockResponse({ status: 201, json: { document: { id: 1, name: 'a.txt' } } }),
+    )
+    const file = new File(['hi'], 'a.txt', { type: 'text/plain' })
+
+    const data = await filesApi.uploadDocument(file)
+
+    const [url, options] = global.fetch.mock.calls[0]
+    expect(url).toBe('/api/v1/documents')
+    expect(options.method).toBe('POST')
+    expect(options.credentials).toBe('include')
+    expect(options.body).toBeInstanceOf(FormData)
+    expect(options.body.get('file')).toBe(file)
+    expect(options.body.get('folder_id')).toBeNull()
+    expect(data.document.name).toBe('a.txt')
+  })
+
+  it('sends folder_id when uploading into a folder', async () => {
+    global.fetch.mockResolvedValue(
+      mockResponse({ status: 201, json: { document: { id: 2 } } }),
+    )
+    const file = new File(['hi'], 'a.txt', { type: 'text/plain' })
+
+    await filesApi.uploadDocument(file, 3)
+
+    const [, options] = global.fetch.mock.calls[0]
+    expect(options.body.get('folder_id')).toBe('3')
+  })
+
+  it('surfaces validation errors joined into one message', async () => {
+    global.fetch.mockResolvedValue(
+      mockResponse({ ok: false, status: 422, json: { errors: ['File is required.'] } }),
+    )
+    const file = new File(['hi'], 'a.txt', { type: 'text/plain' })
+
+    await expect(filesApi.uploadDocument(file)).rejects.toMatchObject({
+      message: 'File is required.',
+      status: 422,
+    })
+  })
+
+  it('throws a generic upload error when no body is returned', async () => {
+    global.fetch.mockResolvedValue(
+      mockResponse({ ok: false, status: 500, json: null, contentType: null }),
+    )
+    const file = new File(['hi'], 'a.txt', { type: 'text/plain' })
+
+    await expect(filesApi.uploadDocument(file)).rejects.toThrow(
+      'Upload failed. Please try again.',
+    )
   })
 })

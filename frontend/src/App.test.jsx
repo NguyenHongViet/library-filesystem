@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderWithProviders, screen, waitFor } from './test-utils'
 import App from './App'
-import { authApi } from './api/client'
+import { authApi, filesApi } from './api/client'
 
 vi.mock('./api/client', () => ({
   authApi: {
@@ -9,11 +9,18 @@ vi.mock('./api/client', () => ({
     login: vi.fn(),
     logout: vi.fn(),
   },
+  filesApi: {
+    listFolders: vi.fn(),
+    listDocuments: vi.fn(),
+    uploadDocument: vi.fn(),
+  },
 }))
 
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    filesApi.listFolders.mockResolvedValue({ folders: [] })
+    filesApi.listDocuments.mockResolvedValue({ documents: [] })
   })
 
   it('shows the login page when unauthenticated', async () => {
@@ -26,7 +33,7 @@ describe('App', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows the welcome content when authenticated', async () => {
+  it('shows the file browser when authenticated', async () => {
     authApi.me.mockResolvedValue({
       user: { id: 1, email: 'admin@example.com', name: 'Admin User' },
     })
@@ -34,11 +41,9 @@ describe('App', () => {
     renderWithProviders(<App />)
 
     expect(
-      await screen.findByRole('heading', { level: 2, name: 'Welcome, Admin User' }),
+      await screen.findByRole('heading', { level: 2, name: 'My files' }),
     ).toBeInTheDocument()
-    expect(
-      screen.getByText('You are signed in. Start building your app here.'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Admin User')).toBeInTheDocument()
   })
 
   it('falls back to the email when the user has no name', async () => {
@@ -46,9 +51,7 @@ describe('App', () => {
 
     renderWithProviders(<App />)
 
-    expect(
-      await screen.findByRole('heading', { name: 'Welcome, noname@example.com' }),
-    ).toBeInTheDocument()
+    expect(await screen.findByText('noname@example.com')).toBeInTheDocument()
   })
 
   it('signs the user out', async () => {

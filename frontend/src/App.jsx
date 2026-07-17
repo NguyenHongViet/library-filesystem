@@ -1,6 +1,7 @@
-import { Card, Center, Loader, Stack, Text, Title } from '@mantine/core'
+import { Center, Loader } from '@mantine/core'
 import AdminLayout from './components/AdminLayout'
 import LoginPage from './pages/LoginPage'
+import HomePage from './pages/HomePage'
 import { useAuth } from './auth/AuthContext'
 
 function App() {
@@ -20,12 +21,7 @@ function App() {
 
   return (
     <AdminLayout>
-      <Stack gap="lg">
-        <Title order={2}>Welcome, {user.name || user.email}</Title>
-        <Card withBorder padding="lg">
-          <Text c="dimmed">You are signed in. Start building your app here.</Text>
-        </Card>
-      </Stack>
+      <HomePage />
     </AdminLayout>
   )
 }
