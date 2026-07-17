@@ -9,6 +9,11 @@ vi.mock('../api/client', () => ({
   filesApi: {
     listFolders: vi.fn(),
     listDocuments: vi.fn(),
+    getDocument: vi.fn(),
+    restoreVersion: vi.fn(),
+    documentDownloadUrl: (id) => `/api/v1/documents/${id}/download`,
+    versionDownloadUrl: (id, versionId) =>
+      `/api/v1/documents/${id}/versions/${versionId}/download`,
     getFolder: vi.fn(),
     createFolder: vi.fn(),
     moveDocument: vi.fn(),
@@ -363,6 +368,57 @@ describe('HomePage', () => {
     await user.click(screen.getByRole('button', { name: 'Private' }))
 
     expect(await screen.findByText('Folder not found.')).toBeInTheDocument()
+  })
+
+  it('opens the file detail page when a file row is clicked', async () => {
+    const user = userEvent.setup()
+    filesApi.listDocuments.mockResolvedValue({
+      documents: [
+        { id: 8, name: 'doc.txt', content_type: 'text/plain', byte_size: 4, is_public: false },
+      ],
+    })
+    filesApi.getDocument.mockResolvedValue({
+      document: {
+        id: 8,
+        name: 'doc.txt',
+        content_type: 'text/plain',
+        byte_size: 4,
+        is_public: false,
+        updated_at: '2026-07-10T00:00:00Z',
+      },
+      versions: [],
+    })
+
+    renderWithMantine(<HomePage />)
+    await user.click(await screen.findByText('doc.txt'))
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'doc.txt' }),
+    ).toBeInTheDocument()
+    expect(filesApi.getDocument).toHaveBeenCalledWith(8)
+
+    await user.click(screen.getByRole('button', { name: /back to files/i }))
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'My files' }),
+    ).toBeInTheDocument()
+  })
+
+  it('does not open the detail page when the delete action is clicked', async () => {
+    const user = userEvent.setup()
+    filesApi.listDocuments.mockResolvedValue({
+      documents: [
+        { id: 8, name: 'doc.txt', content_type: 'text/plain', byte_size: 4, is_public: false },
+      ],
+    })
+    filesApi.deleteDocument.mockResolvedValue(null)
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText('doc.txt')
+
+    await user.click(screen.getByRole('button', { name: 'Delete doc.txt' }))
+
+    expect(filesApi.deleteDocument).toHaveBeenCalledWith(8)
+    expect(filesApi.getDocument).not.toHaveBeenCalled()
   })
 
   it('moves a document to the trash and refreshes the list', async () => {

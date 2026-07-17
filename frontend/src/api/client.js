@@ -62,6 +62,12 @@ function query(params) {
 export const filesApi = {
   listDocuments: (folderId) =>
     request(`/documents${query({ folder_id: folderId })}`),
+  getDocument: (id) => request(`/documents/${id}`),
+  restoreVersion: (id, versionId) =>
+    request(`/documents/${id}/versions/${versionId}/restore`, { method: 'POST' }),
+  documentDownloadUrl: (id) => `/api/v1/documents/${id}/download`,
+  versionDownloadUrl: (id, versionId) =>
+    `/api/v1/documents/${id}/versions/${versionId}/download`,
   listFolders: (parentId) =>
     request(`/folders${query({ parent_id: parentId })}`),
   getFolder: (id) => request(`/folders/${id}`),

@@ -95,6 +95,39 @@ describe('filesApi', () => {
     )
   })
 
+  it('fetches a single document with its versions', async () => {
+    global.fetch.mockResolvedValue(
+      mockResponse({ json: { document: { id: 8 }, versions: [] } }),
+    )
+
+    await filesApi.getDocument(8)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/documents/8',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('restores a document version', async () => {
+    global.fetch.mockResolvedValue(
+      mockResponse({ json: { document: { id: 8 }, versions: [] } }),
+    )
+
+    await filesApi.restoreVersion(8, 3)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/documents/8/versions/3/restore',
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
+  it('builds download URLs for a document and a version', () => {
+    expect(filesApi.documentDownloadUrl(8)).toBe('/api/v1/documents/8/download')
+    expect(filesApi.versionDownloadUrl(8, 3)).toBe(
+      '/api/v1/documents/8/versions/3/download',
+    )
+  })
+
   it('lists documents scoped to a folder', async () => {
     global.fetch.mockResolvedValue(mockResponse({ json: { documents: [] } }))
 

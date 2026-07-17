@@ -30,6 +30,7 @@ import { filesApi } from '../api/client'
 import { formatBytes } from '../utils/format'
 import FileDropzone from '../components/FileDropzone'
 import SharingToggle from '../components/SharingToggle'
+import FileDetailPage from './FileDetailPage'
 
 function HomePage() {
   const [folderId, setFolderId] = useState(null)
@@ -42,6 +43,7 @@ function HomePage() {
   const [error, setError] = useState(null)
   const [newFolderName, setNewFolderName] = useState('')
   const [dropTargetId, setDropTargetId] = useState(null)
+  const [selectedDocumentId, setSelectedDocumentId] = useState(null)
   const [modalOpened, modal] = useDisclosure(false)
   const draggingIdRef = useRef(null)
   const dropzoneRef = useRef(null)
@@ -183,6 +185,18 @@ function HomePage() {
 
   const isEmpty = folders.length === 0 && documents.length === 0
 
+  if (selectedDocumentId) {
+    return (
+      <FileDetailPage
+        documentId={selectedDocumentId}
+        onBack={() => {
+          setSelectedDocumentId(null)
+          load()
+        }}
+      />
+    )
+  }
+
   return (
     <Stack gap="lg" mih="calc(100dvh - 60px - 2 * var(--mantine-spacing-md))">
       <Breadcrumbs>
@@ -322,6 +336,7 @@ function HomePage() {
                     key={`document-${document.id}`}
                     data-testid={`document-row-${document.id}`}
                     draggable
+                    onClick={() => setSelectedDocumentId(document.id)}
                     onDragStart={() => {
                       draggingIdRef.current = document.id
                     }}
@@ -329,7 +344,7 @@ function HomePage() {
                       draggingIdRef.current = null
                       setDropTargetId(null)
                     }}
-                    style={{ cursor: 'grab' }}
+                    style={{ cursor: 'pointer' }}
                   >
                     <Table.Td>
                       <Group gap="xs" wrap="nowrap">
@@ -351,7 +366,10 @@ function HomePage() {
                           variant="subtle"
                           color="red"
                           aria-label={`Delete ${document.name}`}
-                          onClick={() => handleDeleteDocument(document)}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            handleDeleteDocument(document)
+                          }}
                         >
                           <IconTrash size={16} />
                         </ActionIcon>

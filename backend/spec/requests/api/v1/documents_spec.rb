@@ -9,6 +9,14 @@ RSpec.describe "Api::V1::Documents", type: :request do
     post "/api/v1/login", params: { user: { email: account.email, password: password } }
   end
 
+  def build_upload(content, name: "note.txt")
+    Rack::Test::UploadedFile.new(StringIO.new(content), "text/plain", original_filename: name)
+  end
+
+  def upload_note(content, name: "note.txt", folder_id: nil)
+    post "/api/v1/documents", params: { file: build_upload(content, name: name), name: name, folder_id: folder_id }
+  end
+
   describe "GET /api/v1/documents" do
     it "returns 401 when not signed in" do
       get "/api/v1/documents"
@@ -106,6 +114,78 @@ RSpec.describe "Api::V1::Documents", type: :request do
       post "/api/v1/documents", params: {}
       expect(response).to have_http_status(:unprocessable_content)
       expect(JSON.parse(response.body)["errors"]).to include("File is required.")
+    end
+  end
+
+  describe "POST /api/v1/documents (overwriting same name and location)" do
+    it "overwrites the existing file and archives the previous contents" do
+      sign_in_user
+      upload_note("first")
+      document_id = JSON.parse(response.body).dig("document", "id")
+
+      expect { upload_note("second version") }.not_to change(user.documents, :count)
+
+      expect(response).to have_http_status(:ok)
+      document = user.documents.find(document_id)
+      expect(document.file.download).to eq("second version")
+      expect(document.document_versions.count).to eq(1)
+      expect(document.document_versions.sole.file.download).to eq("first")
+    end
+
+    it "does not create a version when the same content is re-uploaded" do
+      sign_in_user
+      upload_note("identical")
+      document_id = JSON.parse(response.body).dig("document", "id")
+
+      expect { upload_note("identical") }.not_to change {
+        user.documents.find(document_id).document_versions.count
+      }
+
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body)["unchanged"]).to be(true)
+    end
+
+    it "creates a version when the same-named file's content changes" do
+      sign_in_user
+      upload_note("before")
+      document_id = JSON.parse(response.body).dig("document", "id")
+
+      upload_note("after")
+
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body)["unchanged"]).to be(false)
+      expect(user.documents.find(document_id).document_versions.count).to eq(1)
+    end
+
+    it "keeps at most the 5 most recent versions" do
+      sign_in_user
+      upload_note("v0")
+      document_id = JSON.parse(response.body).dig("document", "id")
+      7.times { |i| upload_note("v#{i + 1}") }
+
+      document = user.documents.find(document_id)
+      expect(document.file.download).to eq("v7")
+      expect(document.document_versions.count).to eq(4)
+      expect(document.document_versions.order(:version_number).pluck(:version_number)).to eq([ 4, 5, 6, 7 ])
+    end
+
+    it "treats the same name in a different folder as a separate file" do
+      sign_in_user
+      folder = create(:folder, user: user)
+      upload_note("root copy")
+
+      expect { upload_note("nested copy", folder_id: folder.id) }
+        .to change(user.documents, :count).by(1)
+      expect(response).to have_http_status(:created)
+    end
+
+    it "does not overwrite a trashed file of the same name" do
+      sign_in_user
+      upload_note("original")
+      user.documents.sole.soft_delete!
+
+      expect { upload_note("fresh") }.to change(user.documents.kept, :count).by(1)
+      expect(response).to have_http_status(:created)
     end
   end
 
@@ -234,6 +314,144 @@ RSpec.describe "Api::V1::Documents", type: :request do
       document = create(:document, user: user)
 
       post "/api/v1/documents/#{document.id}/restore"
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "GET /api/v1/documents/:id" do
+    it "returns 401 when not signed in" do
+      document = create(:document)
+      get "/api/v1/documents/#{document.id}"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it "returns the document and its versions, newest first" do
+      sign_in_user
+      upload_note("v0")
+      document_id = JSON.parse(response.body).dig("document", "id")
+      upload_note("v1")
+      upload_note("v2")
+
+      get "/api/v1/documents/#{document_id}"
+
+      expect(response).to have_http_status(:ok)
+      body = JSON.parse(response.body)
+      expect(body.dig("document", "id")).to eq(document_id)
+      expect(body["versions"].map { |v| v["version_number"] }).to eq([ 2, 1 ])
+    end
+
+    it "includes the folder path as the file location" do
+      sign_in_user
+      folder = create(:folder, user: user, name: "Reports")
+      nested = create(:folder, user: user, parent: folder, name: "Q1")
+      document = create(:document, user: user, folder: nested, name: "note.txt")
+
+      get "/api/v1/documents/#{document.id}"
+
+      expect(JSON.parse(response.body).dig("document", "location")).to eq("Reports/Q1")
+    end
+
+    it "reports a nil location for a file at the root" do
+      sign_in_user
+      document = create(:document, user: user)
+
+      get "/api/v1/documents/#{document.id}"
+
+      expect(JSON.parse(response.body).dig("document", "location")).to be_nil
+    end
+
+    it "returns 404 for a document owned by someone else" do
+      sign_in_user
+      other = create(:document)
+
+      get "/api/v1/documents/#{other.id}"
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "POST /api/v1/documents/:id/versions/:version_id/restore" do
+    it "rolls the current file back to the chosen version" do
+      sign_in_user
+      upload_note("old")
+      document_id = JSON.parse(response.body).dig("document", "id")
+      upload_note("new")
+      version_id = user.documents.find(document_id).document_versions.sole.id
+
+      post "/api/v1/documents/#{document_id}/versions/#{version_id}/restore"
+
+      expect(response).to have_http_status(:ok)
+      document = user.documents.find(document_id)
+      expect(document.file.download).to eq("old")
+      # The previously current "new" contents are kept as a version.
+      expect(document.document_versions.sole.file.download).to eq("new")
+    end
+
+    it "returns 404 for a version that does not belong to the document" do
+      sign_in_user
+      upload_note("only")
+      document_id = JSON.parse(response.body).dig("document", "id")
+      foreign_version = create(:document_version)
+
+      post "/api/v1/documents/#{document_id}/versions/#{foreign_version.id}/restore"
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "GET /api/v1/documents/:id/download" do
+    it "returns 401 when not signed in" do
+      document = create(:document)
+      get "/api/v1/documents/#{document.id}/download"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it "streams the current file as an attachment" do
+      sign_in_user
+      upload_note("hello world", name: "note.txt")
+      document_id = JSON.parse(response.body).dig("document", "id")
+
+      get "/api/v1/documents/#{document_id}/download"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to eq("hello world")
+      expect(response.headers["Content-Disposition"]).to include("attachment")
+      expect(response.headers["Content-Disposition"]).to include("note.txt")
+    end
+
+    it "returns 404 for a document owned by someone else" do
+      sign_in_user
+      other = create(:document)
+
+      get "/api/v1/documents/#{other.id}/download"
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "GET /api/v1/documents/:id/versions/:version_id/download" do
+    it "streams an older version as an attachment" do
+      sign_in_user
+      upload_note("old contents", name: "note.txt")
+      document_id = JSON.parse(response.body).dig("document", "id")
+      upload_note("new contents", name: "note.txt")
+      version_id = user.documents.find(document_id).document_versions.sole.id
+
+      get "/api/v1/documents/#{document_id}/versions/#{version_id}/download"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to eq("old contents")
+      expect(response.headers["Content-Disposition"]).to include("v1-note.txt")
+    end
+
+    it "returns 404 for a version that does not belong to the document" do
+      sign_in_user
+      upload_note("only")
+      document_id = JSON.parse(response.body).dig("document", "id")
+      foreign_version = create(:document_version)
+
+      get "/api/v1/documents/#{document_id}/versions/#{foreign_version.id}/download"
 
       expect(response).to have_http_status(:not_found)
     end
