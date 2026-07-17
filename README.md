@@ -29,7 +29,39 @@ Once running:
 | Health   | http://localhost:3000/up          |
 | Postgres | localhost:5432                    |
 
-The frontend page shows the backend connection status (it calls `/api/v1/ping` through the Vite proxy).
+Open the frontend at http://localhost:5173 and you will be asked to sign in.
+
+## Authentication
+
+Authentication is handled by [Devise](https://github.com/heartcombo/devise). The
+Rails API is session/cookie based: the SPA calls the JSON endpoints below and the
+session cookie is carried automatically through the Vite dev proxy.
+
+| Method   | Endpoint         | Purpose                       |
+| -------- | ---------------- | ----------------------------- |
+| `POST`   | `/api/v1/login`  | Sign in (`{ user: { email, password } }`) |
+| `DELETE` | `/api/v1/logout` | Sign out                      |
+| `GET`    | `/api/v1/me`     | Current user (401 if not signed in) |
+
+### Seed users
+
+Run the seeds to create demo accounts (already run automatically on `db:setup`):
+
+```bash
+docker compose exec backend bin/rails db:seed
+```
+
+All demo accounts share the password **`password123`**:
+
+| Email               | Password      | Role   |
+| ------------------- | ------------- | ------ |
+| `admin@example.com` | `password123` | admin  |
+| `alice@example.com` | `password123` | member |
+| `bob@example.com`   | `password123` | member |
+| `carol@example.com` | `password123` | member |
+| `dave@example.com`  | `password123` | member |
+
+> These credentials are for local development only. Do not use them in production.
 
 ## Common commands
 
