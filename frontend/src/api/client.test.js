@@ -277,6 +277,39 @@ describe('filesApi', () => {
     )
   })
 
+  it('lists users who have shared files', async () => {
+    global.fetch.mockResolvedValue(mockResponse({ json: { users: [] } }))
+
+    await filesApi.listSharedUsers()
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/shared/users',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('lists a user\'s shared entries at the root', async () => {
+    global.fetch.mockResolvedValue(mockResponse({ json: { folders: [], documents: [] } }))
+
+    await filesApi.listSharedEntries(7)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/shared/users/7/entries',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('lists a user\'s shared entries within a folder', async () => {
+    global.fetch.mockResolvedValue(mockResponse({ json: { folders: [], documents: [] } }))
+
+    await filesApi.listSharedEntries(7, 3)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/shared/users/7/entries?parent_id=3',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
   it('uploads a file as multipart form data', async () => {
     global.fetch.mockResolvedValue(
       mockResponse({ status: 201, json: { document: { id: 1, name: 'a.txt' } } }),

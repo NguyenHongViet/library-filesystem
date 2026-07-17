@@ -4,6 +4,7 @@ import AdminLayout from './components/AdminLayout'
 import LoginPage from './pages/LoginPage'
 import HomePage from './pages/HomePage'
 import TrashPage from './pages/TrashPage'
+import SharedPage from './pages/SharedPage'
 import { useAuth } from './auth/AuthContext'
 
 function App() {
@@ -24,7 +25,13 @@ function App() {
 
   return (
     <AdminLayout view={view} onNavigate={setView}>
-      {view === 'trash' ? <TrashPage /> : <HomePage />}
+      {view === 'trash' ? (
+        <TrashPage />
+      ) : view === 'shared' ? (
+        <SharedPage />
+      ) : (
+        <HomePage />
+      )}
     </AdminLayout>
   )
 }

@@ -60,6 +60,9 @@ describe('AdminLayout', () => {
     await user.click(screen.getByRole('button', { name: /trash/i }))
     expect(onNavigate).toHaveBeenCalledWith('trash')
 
+    await user.click(screen.getByRole('button', { name: /shared files/i }))
+    expect(onNavigate).toHaveBeenCalledWith('shared')
+
     await user.click(screen.getByRole('button', { name: /my files/i }))
     expect(onNavigate).toHaveBeenCalledWith('files')
   })

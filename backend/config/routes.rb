@@ -25,6 +25,8 @@ Rails.application.routes.draw do
       end
       resources :folders, only: [ :index, :show, :create, :update, :destroy ]
       get "trash" => "trash#index"
+      get "shared/users" => "shared#users"
+      get "shared/users/:user_id/entries" => "shared#entries"
     end
   end
 

@@ -82,6 +82,9 @@ export const filesApi = {
   deleteFolder: (id) => request(`/folders/${id}`, { method: 'DELETE' }),
   deleteDocument: (id) => request(`/documents/${id}`, { method: 'DELETE' }),
   listTrash: () => request('/trash'),
+  listSharedUsers: () => request('/shared/users'),
+  listSharedEntries: (userId, parentId) =>
+    request(`/shared/users/${userId}/entries${query({ parent_id: parentId })}`),
   restoreDocument: (id) => request(`/documents/${id}/restore`, { method: 'POST' }),
   uploadDocument: (file, folderId) => {
     const formData = new FormData()
