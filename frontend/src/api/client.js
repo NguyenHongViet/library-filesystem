@@ -69,6 +69,10 @@ export const filesApi = {
     request('/folders', { method: 'POST', body: { name, parent_id: parentId } }),
   moveDocument: (id, folderId) =>
     request(`/documents/${id}`, { method: 'PATCH', body: { folder_id: folderId } }),
+  setFolderPublic: (id, isPublic) =>
+    request(`/folders/${id}`, { method: 'PATCH', body: { is_public: isPublic } }),
+  setDocumentPublic: (id, isPublic) =>
+    request(`/documents/${id}`, { method: 'PATCH', body: { is_public: isPublic } }),
   uploadDocument: (file, folderId) => {
     const formData = new FormData()
     formData.append('file', file)

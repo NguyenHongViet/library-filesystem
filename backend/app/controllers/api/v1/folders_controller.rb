@@ -18,6 +18,18 @@ module Api
         render json: { error: "Folder not found." }, status: :not_found
       end
 
+      def update
+        folder = current_user.folders.find(params[:id])
+
+        if folder.update(is_public: ActiveModel::Type::Boolean.new.cast(params[:is_public]))
+          render json: { folder: folder_json(folder) }
+        else
+          render json: { errors: folder.errors.full_messages }, status: :unprocessable_content
+        end
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: "Folder not found." }, status: :not_found
+      end
+
       def create
         parent_id = nil
         if params[:parent_id].present?

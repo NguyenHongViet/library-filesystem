@@ -162,6 +162,38 @@ describe('filesApi', () => {
     )
   })
 
+  it('toggles the public flag on a folder', async () => {
+    global.fetch.mockResolvedValue(
+      mockResponse({ json: { folder: { id: 4, is_public: true } } }),
+    )
+
+    await filesApi.setFolderPublic(4, true)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/folders/4',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ is_public: true }),
+      }),
+    )
+  })
+
+  it('toggles the public flag on a document', async () => {
+    global.fetch.mockResolvedValue(
+      mockResponse({ json: { document: { id: 5, is_public: false } } }),
+    )
+
+    await filesApi.setDocumentPublic(5, false)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/documents/5',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ is_public: false }),
+      }),
+    )
+  })
+
   it('uploads a file as multipart form data', async () => {
     global.fetch.mockResolvedValue(
       mockResponse({ status: 201, json: { document: { id: 1, name: 'a.txt' } } }),

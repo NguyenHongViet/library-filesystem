@@ -16,7 +16,7 @@ Rails.application.routes.draw do
       get "me" => "sessions#show"
 
       resources :documents, only: [ :index, :create, :update ]
-      resources :folders, only: [ :index, :show, :create ]
+      resources :folders, only: [ :index, :show, :create, :update ]
     end
   end
 

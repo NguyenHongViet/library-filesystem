@@ -12,6 +12,8 @@ vi.mock('../api/client', () => ({
     getFolder: vi.fn(),
     createFolder: vi.fn(),
     moveDocument: vi.fn(),
+    setFolderPublic: vi.fn(),
+    setDocumentPublic: vi.fn(),
     uploadDocument: vi.fn(),
   },
 }))
@@ -273,6 +275,92 @@ describe('HomePage', () => {
     fireEvent.drop(screen.getByTestId('folder-row-3'))
 
     expect(await screen.findByText('Document not found.')).toBeInTheDocument()
+  })
+
+  it('toggles a document between public and private', async () => {
+    const user = userEvent.setup()
+    filesApi.listDocuments.mockResolvedValue({
+      documents: [
+        { id: 8, name: 'doc.txt', content_type: 'text/plain', byte_size: 4, is_public: false },
+      ],
+    })
+    filesApi.setDocumentPublic.mockResolvedValue({
+      document: { id: 8, is_public: true },
+    })
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText('doc.txt')
+
+    await user.click(screen.getByRole('button', { name: 'Private' }))
+
+    expect(filesApi.setDocumentPublic).toHaveBeenCalledWith(8, true)
+    expect(await screen.findByRole('button', { name: 'Public' })).toBeInTheDocument()
+  })
+
+  it('toggles a folder between public and private', async () => {
+    const user = userEvent.setup()
+    filesApi.listFolders.mockResolvedValue({
+      folders: [{ id: 1, name: 'Projects', is_public: true }],
+    })
+    filesApi.setFolderPublic.mockResolvedValue({
+      folder: { id: 1, is_public: false },
+    })
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText('Projects')
+
+    await user.click(screen.getByRole('button', { name: 'Public' }))
+
+    expect(filesApi.setFolderPublic).toHaveBeenCalledWith(1, false)
+    expect(await screen.findByRole('button', { name: 'Private' })).toBeInTheDocument()
+  })
+
+  it('does not navigate into a folder when its sharing toggle is clicked', async () => {
+    const user = userEvent.setup()
+    filesApi.listFolders.mockResolvedValue({
+      folders: [{ id: 1, name: 'Projects', is_public: false }],
+    })
+    filesApi.setFolderPublic.mockResolvedValue({ folder: { id: 1, is_public: true } })
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText('Projects')
+
+    await user.click(screen.getByRole('button', { name: 'Private' }))
+
+    expect(filesApi.getFolder).not.toHaveBeenCalled()
+    expect(filesApi.listDocuments).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows an error when toggling document sharing fails', async () => {
+    const user = userEvent.setup()
+    filesApi.listDocuments.mockResolvedValue({
+      documents: [
+        { id: 8, name: 'doc.txt', content_type: 'text/plain', byte_size: 4, is_public: false },
+      ],
+    })
+    filesApi.setDocumentPublic.mockRejectedValue(new Error('Document not found.'))
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText('doc.txt')
+
+    await user.click(screen.getByRole('button', { name: 'Private' }))
+
+    expect(await screen.findByText('Document not found.')).toBeInTheDocument()
+  })
+
+  it('shows an error when toggling folder sharing fails', async () => {
+    const user = userEvent.setup()
+    filesApi.listFolders.mockResolvedValue({
+      folders: [{ id: 1, name: 'Projects', is_public: false }],
+    })
+    filesApi.setFolderPublic.mockRejectedValue(new Error('Folder not found.'))
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText('Projects')
+
+    await user.click(screen.getByRole('button', { name: 'Private' }))
+
+    expect(await screen.findByText('Folder not found.')).toBeInTheDocument()
   })
 
   it('clears the drag state when a drag ends without a drop', async () => {

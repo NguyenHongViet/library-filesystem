@@ -125,4 +125,41 @@ RSpec.describe "Api::V1::Folders", type: :request do
       expect(response).to have_http_status(:unprocessable_content)
     end
   end
+
+  describe "PATCH /api/v1/folders/:id" do
+    it "returns 401 when not signed in" do
+      folder = create(:folder)
+      patch "/api/v1/folders/#{folder.id}", params: { is_public: true }
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it "toggles the public flag on a folder the user owns" do
+      sign_in_user
+      folder = create(:folder, user: user, is_public: false)
+
+      patch "/api/v1/folders/#{folder.id}", params: { is_public: true }
+
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body).dig("folder", "is_public")).to be(true)
+      expect(folder.reload.is_public).to be(true)
+    end
+
+    it "can flip a public folder back to private" do
+      sign_in_user
+      folder = create(:folder, user: user, is_public: true)
+
+      patch "/api/v1/folders/#{folder.id}", params: { is_public: false }
+
+      expect(folder.reload.is_public).to be(false)
+    end
+
+    it "returns 404 for a folder owned by someone else" do
+      sign_in_user
+      other = create(:folder)
+
+      patch "/api/v1/folders/#{other.id}", params: { is_public: true }
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
 end

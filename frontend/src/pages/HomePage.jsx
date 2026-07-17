@@ -26,6 +26,7 @@ import {
 import { filesApi } from '../api/client'
 import { formatBytes } from '../utils/format'
 import FileDropzone from '../components/FileDropzone'
+import SharingToggle from '../components/SharingToggle'
 
 function HomePage() {
   const [folderId, setFolderId] = useState(null)
@@ -117,6 +118,40 @@ function HomePage() {
     [load],
   )
 
+  const handleToggleFolderPublic = useCallback(async (folder) => {
+    setError(null)
+    try {
+      const { folder: updated } = await filesApi.setFolderPublic(
+        folder.id,
+        !folder.is_public,
+      )
+      setFolders((current) =>
+        current.map((item) =>
+          item.id === updated.id ? { ...item, is_public: updated.is_public } : item,
+        ),
+      )
+    } catch (err) {
+      setError(err.message)
+    }
+  }, [])
+
+  const handleToggleDocumentPublic = useCallback(async (document) => {
+    setError(null)
+    try {
+      const { document: updated } = await filesApi.setDocumentPublic(
+        document.id,
+        !document.is_public,
+      )
+      setDocuments((current) =>
+        current.map((item) =>
+          item.id === updated.id ? { ...item, is_public: updated.is_public } : item,
+        ),
+      )
+    } catch (err) {
+      setError(err.message)
+    }
+  }, [])
+
   const isEmpty = folders.length === 0 && documents.length === 0
 
   return (
@@ -192,6 +227,7 @@ function HomePage() {
                   <Table.Th>Name</Table.Th>
                   <Table.Th>Type</Table.Th>
                   <Table.Th>Size</Table.Th>
+                  <Table.Th ta="right">Sharing</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -228,6 +264,12 @@ function HomePage() {
                     </Table.Td>
                     <Table.Td>Folder</Table.Td>
                     <Table.Td>—</Table.Td>
+                    <Table.Td ta="right">
+                      <SharingToggle
+                        isPublic={folder.is_public}
+                        onToggle={() => handleToggleFolderPublic(folder)}
+                      />
+                    </Table.Td>
                   </Table.Tr>
                 ))}
                 {documents.map((document) => (
@@ -252,6 +294,12 @@ function HomePage() {
                     </Table.Td>
                     <Table.Td>{document.content_type || 'File'}</Table.Td>
                     <Table.Td>{formatBytes(document.byte_size)}</Table.Td>
+                    <Table.Td ta="right">
+                      <SharingToggle
+                        isPublic={document.is_public}
+                        onToggle={() => handleToggleDocumentPublic(document)}
+                      />
+                    </Table.Td>
                   </Table.Tr>
                 ))}
               </Table.Tbody>

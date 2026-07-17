@@ -128,15 +128,29 @@ RSpec.describe "Api::V1::Documents", type: :request do
       expect(document.reload.folder_id).to eq(folder.id)
     end
 
-    it "moves a document back to the root when no folder_id is given" do
+    it "moves a document back to the root when folder_id is blank" do
       sign_in_user
       folder = create(:folder, user: user)
       document = create(:document, user: user, folder: folder)
 
-      patch "/api/v1/documents/#{document.id}"
+      patch "/api/v1/documents/#{document.id}", params: { folder_id: "" }
 
       expect(response).to have_http_status(:ok)
       expect(document.reload.folder_id).to be_nil
+    end
+
+    it "toggles the public flag without moving the document" do
+      sign_in_user
+      folder = create(:folder, user: user)
+      document = create(:document, user: user, folder: folder, is_public: false)
+
+      patch "/api/v1/documents/#{document.id}", params: { is_public: true }
+
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body).dig("document", "is_public")).to be(true)
+      document.reload
+      expect(document.is_public).to be(true)
+      expect(document.folder_id).to eq(folder.id)
     end
 
     it "returns 404 for a document owned by someone else" do

@@ -12,7 +12,13 @@ module Api
       def update
         document = current_user.documents.find(params[:id])
 
-        if document.update(folder: @folder)
+        attributes = {}
+        attributes[:folder] = @folder if params.key?(:folder_id)
+        if params.key?(:is_public)
+          attributes[:is_public] = ActiveModel::Type::Boolean.new.cast(params[:is_public])
+        end
+
+        if document.update(attributes)
           render json: { document: document_json(document) }
         else
           render json: { errors: document.errors.full_messages }, status: :unprocessable_content
