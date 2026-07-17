@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  ActionIcon,
   Alert,
   Anchor,
   Breadcrumbs,
@@ -11,9 +12,11 @@ import {
   Table,
   Text,
   Title,
+  Tooltip,
 } from '@mantine/core'
 import {
   IconAlertCircle,
+  IconDownload,
   IconFile,
   IconFolder,
   IconUser,
@@ -192,6 +195,7 @@ function SharedPage() {
                 <Table.Th>Name</Table.Th>
                 <Table.Th>Type</Table.Th>
                 <Table.Th>Size</Table.Th>
+                <Table.Th w={60} />
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -210,6 +214,7 @@ function SharedPage() {
                   </Table.Td>
                   <Table.Td>Folder</Table.Td>
                   <Table.Td>—</Table.Td>
+                  <Table.Td />
                 </Table.Tr>
               ))}
               {documents.map((document) => (
@@ -222,6 +227,18 @@ function SharedPage() {
                   </Table.Td>
                   <Table.Td>{document.content_type || 'File'}</Table.Td>
                   <Table.Td>{formatBytes(document.byte_size)}</Table.Td>
+                  <Table.Td ta="right">
+                    <Tooltip label="Download" withArrow>
+                      <ActionIcon
+                        component="a"
+                        href={filesApi.sharedDocumentDownloadUrl(document.id)}
+                        variant="subtle"
+                        aria-label={`Download ${document.name}`}
+                      >
+                        <IconDownload size={16} />
+                      </ActionIcon>
+                    </Tooltip>
+                  </Table.Td>
                 </Table.Tr>
               ))}
             </Table.Tbody>

@@ -403,6 +403,39 @@ describe('HomePage', () => {
     ).toBeInTheDocument()
   })
 
+  it('shows a download link on each file row', async () => {
+    filesApi.listDocuments.mockResolvedValue({
+      documents: [
+        { id: 8, name: 'doc.txt', content_type: 'text/plain', byte_size: 4, is_public: false },
+      ],
+    })
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText('doc.txt')
+
+    expect(
+      screen.getByRole('link', { name: 'Download doc.txt' }),
+    ).toHaveAttribute('href', '/api/v1/documents/8/download')
+  })
+
+  it('does not open the detail page when the download link is clicked', async () => {
+    const user = userEvent.setup()
+    filesApi.listDocuments.mockResolvedValue({
+      documents: [
+        { id: 8, name: 'doc.txt', content_type: 'text/plain', byte_size: 4, is_public: false },
+      ],
+    })
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText('doc.txt')
+
+    const link = screen.getByRole('link', { name: 'Download doc.txt' })
+    link.addEventListener('click', (event) => event.preventDefault())
+    await user.click(link)
+
+    expect(filesApi.getDocument).not.toHaveBeenCalled()
+  })
+
   it('does not open the detail page when the delete action is clicked', async () => {
     const user = userEvent.setup()
     filesApi.listDocuments.mockResolvedValue({

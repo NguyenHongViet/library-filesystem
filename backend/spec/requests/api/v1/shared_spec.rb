@@ -100,4 +100,54 @@ RSpec.describe "Api::V1::Shared", type: :request do
       expect(response).to have_http_status(:not_found)
     end
   end
+
+  describe "GET /api/v1/shared/documents/:id/download" do
+    let(:owner) { create(:user) }
+
+    def public_file(content, name: "shared.txt")
+      document = build(:document, user: owner, name: name, is_public: true, content_type: "text/plain")
+      document.file.attach(io: StringIO.new(content), filename: name, content_type: "text/plain")
+      document.save!
+      document
+    end
+
+    it "returns 401 when not signed in" do
+      document = public_file("data")
+      get "/api/v1/shared/documents/#{document.id}/download"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it "streams another user's public file as an attachment" do
+      sign_in_user
+      document = public_file("shared content", name: "shared.txt")
+
+      get "/api/v1/shared/documents/#{document.id}/download"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to eq("shared content")
+      expect(response.headers["Content-Disposition"]).to include("attachment")
+      expect(response.headers["Content-Disposition"]).to include("shared.txt")
+    end
+
+    it "returns 404 for a private file" do
+      sign_in_user
+      document = build(:document, user: owner, is_public: false)
+      document.file.attach(io: StringIO.new("secret"), filename: "p.txt", content_type: "text/plain")
+      document.save!
+
+      get "/api/v1/shared/documents/#{document.id}/download"
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "returns 404 for a trashed public file" do
+      sign_in_user
+      document = public_file("gone")
+      document.soft_delete!
+
+      get "/api/v1/shared/documents/#{document.id}/download"
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
 end

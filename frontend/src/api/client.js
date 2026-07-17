@@ -85,6 +85,7 @@ export const filesApi = {
   listSharedUsers: () => request('/shared/users'),
   listSharedEntries: (userId, parentId) =>
     request(`/shared/users/${userId}/entries${query({ parent_id: parentId })}`),
+  sharedDocumentDownloadUrl: (id) => `/api/v1/shared/documents/${id}/download`,
   restoreDocument: (id) => request(`/documents/${id}/restore`, { method: 'POST' }),
   uploadDocument: (file, folderId) => {
     const formData = new FormData()

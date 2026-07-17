@@ -27,6 +27,7 @@ Rails.application.routes.draw do
       get "trash" => "trash#index"
       get "shared/users" => "shared#users"
       get "shared/users/:user_id/entries" => "shared#entries"
+      get "shared/documents/:id/download" => "shared#download_document"
     end
   end
 

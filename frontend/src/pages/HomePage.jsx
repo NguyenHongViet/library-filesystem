@@ -20,6 +20,7 @@ import {
 import { useDisclosure } from '@mantine/hooks'
 import {
   IconAlertCircle,
+  IconDownload,
   IconFile,
   IconFolder,
   IconFolderPlus,
@@ -271,7 +272,7 @@ function HomePage() {
                   <Table.Th>Type</Table.Th>
                   <Table.Th>Size</Table.Th>
                   <Table.Th ta="right">Sharing</Table.Th>
-                  <Table.Th w={60} />
+                  <Table.Th w={100} />
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -361,19 +362,32 @@ function HomePage() {
                       />
                     </Table.Td>
                     <Table.Td ta="right">
-                      <Tooltip label="Move to trash" withArrow>
-                        <ActionIcon
-                          variant="subtle"
-                          color="red"
-                          aria-label={`Delete ${document.name}`}
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            handleDeleteDocument(document)
-                          }}
-                        >
-                          <IconTrash size={16} />
-                        </ActionIcon>
-                      </Tooltip>
+                      <Group gap="xs" justify="flex-end" wrap="nowrap">
+                        <Tooltip label="Download" withArrow>
+                          <ActionIcon
+                            component="a"
+                            href={filesApi.documentDownloadUrl(document.id)}
+                            variant="subtle"
+                            aria-label={`Download ${document.name}`}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <IconDownload size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Move to trash" withArrow>
+                          <ActionIcon
+                            variant="subtle"
+                            color="red"
+                            aria-label={`Delete ${document.name}`}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              handleDeleteDocument(document)
+                            }}
+                          >
+                            <IconTrash size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                      </Group>
                     </Table.Td>
                   </Table.Tr>
                 ))}

@@ -128,6 +128,12 @@ describe('filesApi', () => {
     )
   })
 
+  it('builds a download URL for a shared document', () => {
+    expect(filesApi.sharedDocumentDownloadUrl(9)).toBe(
+      '/api/v1/shared/documents/9/download',
+    )
+  })
+
   it('lists documents scoped to a folder', async () => {
     global.fetch.mockResolvedValue(mockResponse({ json: { documents: [] } }))
 

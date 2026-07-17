@@ -32,6 +32,19 @@ module Api
         }
       end
 
+      # Streams any user's public file, so shared listings can offer downloads.
+      def download_document
+        document = Document.public_documents.kept.find_by(id: params[:id])
+        if document.nil? || !document.file.attached?
+          return render json: { error: "File not found." }, status: :not_found
+        end
+
+        send_data document.file.download,
+          filename: document.name,
+          type: document.content_type.presence || "application/octet-stream",
+          disposition: "attachment"
+      end
+
       private
 
       def owner_json(owner)

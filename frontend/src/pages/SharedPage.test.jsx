@@ -8,6 +8,7 @@ vi.mock('../api/client', () => ({
   filesApi: {
     listSharedUsers: vi.fn(),
     listSharedEntries: vi.fn(),
+    sharedDocumentDownloadUrl: (id) => `/api/v1/shared/documents/${id}/download`,
   },
 }))
 
@@ -60,6 +61,10 @@ describe('SharedPage', () => {
     expect(screen.getByText('public.txt')).toBeInTheDocument()
     expect(screen.getByText('2 KB')).toBeInTheDocument()
     expect(filesApi.listSharedEntries).toHaveBeenCalledWith(1, null)
+
+    expect(
+      screen.getByRole('link', { name: 'Download public.txt' }),
+    ).toHaveAttribute('href', '/api/v1/shared/documents/9/download')
   })
 
   it('navigates into a shared folder and back through the breadcrumb', async () => {
