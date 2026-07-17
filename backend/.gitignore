@@ -1,0 +1,13 @@
+
+# Test coverage reports
+/coverage/
+
+# Ignore the tmp directory and all its subdirectories, keeping placeholders.
+/tmp/*
+!/tmp/.keep
+!/tmp/pids/
+/tmp/pids/*
+!/tmp/pids/.keep
+!/tmp/storage/
+/tmp/storage/*
+!/tmp/storage/.keep

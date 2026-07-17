@@ -1,0 +1,13 @@
+# Local environment variables
+.env
+
+# Dependencies / build output
+node_modules/
+frontend/dist/
+
+# Logs
+*.log
+
+# Claude — keep all Claude config local to this machine
+.claude/
+CLAUDE.md

@@ -1,0 +1,13 @@
+#!/bin/bash
+set -e
+
+rm -f /app/tmp/pids/server.pid
+
+until pg_isready -h "${DATABASE_HOST:-db}" -p "${DATABASE_PORT:-5432}" -U "${DATABASE_USER:-postgres}" >/dev/null 2>&1; do
+  echo "Waiting for PostgreSQL at ${DATABASE_HOST:-db}:${DATABASE_PORT:-5432}..."
+  sleep 1
+done
+
+bundle exec rails db:prepare
+
+exec "$@"
