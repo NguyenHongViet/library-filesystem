@@ -108,4 +108,54 @@ RSpec.describe "Api::V1::Documents", type: :request do
       expect(JSON.parse(response.body)["errors"]).to include("File is required.")
     end
   end
+
+  describe "PATCH /api/v1/documents/:id" do
+    it "returns 401 when not signed in" do
+      document = create(:document)
+      patch "/api/v1/documents/#{document.id}"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it "moves a document into a folder the user owns" do
+      sign_in_user
+      document = create(:document, user: user)
+      folder = create(:folder, user: user)
+
+      patch "/api/v1/documents/#{document.id}", params: { folder_id: folder.id }
+
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body).dig("document", "folder_id")).to eq(folder.id)
+      expect(document.reload.folder_id).to eq(folder.id)
+    end
+
+    it "moves a document back to the root when no folder_id is given" do
+      sign_in_user
+      folder = create(:folder, user: user)
+      document = create(:document, user: user, folder: folder)
+
+      patch "/api/v1/documents/#{document.id}"
+
+      expect(response).to have_http_status(:ok)
+      expect(document.reload.folder_id).to be_nil
+    end
+
+    it "returns 404 for a document owned by someone else" do
+      sign_in_user
+      other_document = create(:document)
+
+      patch "/api/v1/documents/#{other_document.id}"
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "returns 404 when moving into a folder owned by someone else" do
+      sign_in_user
+      document = create(:document, user: user)
+      other_folder = create(:folder)
+
+      patch "/api/v1/documents/#{document.id}", params: { folder_id: other_folder.id }
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
 end

@@ -117,6 +117,51 @@ describe('filesApi', () => {
     )
   })
 
+  it('fetches a single folder with its breadcrumb', async () => {
+    global.fetch.mockResolvedValue(
+      mockResponse({ json: { folder: { id: 4 }, breadcrumb: [] } }),
+    )
+
+    await filesApi.getFolder(4)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/folders/4',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('creates a folder with a name and parent', async () => {
+    global.fetch.mockResolvedValue(
+      mockResponse({ status: 201, json: { folder: { id: 9 } } }),
+    )
+
+    await filesApi.createFolder('Reports', 2)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/folders',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ name: 'Reports', parent_id: 2 }),
+      }),
+    )
+  })
+
+  it('moves a document into a folder', async () => {
+    global.fetch.mockResolvedValue(
+      mockResponse({ json: { document: { id: 5, folder_id: 3 } } }),
+    )
+
+    await filesApi.moveDocument(5, 3)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/documents/5',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ folder_id: 3 }),
+      }),
+    )
+  })
+
   it('uploads a file as multipart form data', async () => {
     global.fetch.mockResolvedValue(
       mockResponse({ status: 201, json: { document: { id: 1, name: 'a.txt' } } }),

@@ -9,6 +9,18 @@ module Api
         render json: { documents: documents.map { |document| document_json(document) } }
       end
 
+      def update
+        document = current_user.documents.find(params[:id])
+
+        if document.update(folder: @folder)
+          render json: { document: document_json(document) }
+        else
+          render json: { errors: document.errors.full_messages }, status: :unprocessable_content
+        end
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: "Document not found." }, status: :not_found
+      end
+
       def create
         uploaded = params[:file]
         return render json: { errors: [ "File is required." ] }, status: :unprocessable_content if uploaded.blank?

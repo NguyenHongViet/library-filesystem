@@ -64,6 +64,11 @@ export const filesApi = {
     request(`/documents${query({ folder_id: folderId })}`),
   listFolders: (parentId) =>
     request(`/folders${query({ parent_id: parentId })}`),
+  getFolder: (id) => request(`/folders/${id}`),
+  createFolder: (name, parentId) =>
+    request('/folders', { method: 'POST', body: { name, parent_id: parentId } }),
+  moveDocument: (id, folderId) =>
+    request(`/documents/${id}`, { method: 'PATCH', body: { folder_id: folderId } }),
   uploadDocument: (file, folderId) => {
     const formData = new FormData()
     formData.append('file', file)

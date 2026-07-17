@@ -8,4 +8,15 @@ class Folder < ApplicationRecord
   validates :name, uniqueness: { scope: [:user_id, :parent_id] }
 
   scope :public_folders, -> { where(is_public: true) }
+
+  # Ancestors ordered from the root down to (and including) this folder.
+  def self_and_ancestors
+    chain = [ self ]
+    node = parent
+    while node
+      chain.unshift(node)
+      node = node.parent
+    end
+    chain
+  end
 end

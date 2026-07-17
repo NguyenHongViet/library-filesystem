@@ -21,4 +21,19 @@ RSpec.describe Folder, type: :model do
       expect(described_class.public_folders).to contain_exactly(public_folder)
     end
   end
+
+  describe '#self_and_ancestors' do
+    it 'returns just itself for a root folder' do
+      folder = create(:folder)
+      expect(folder.self_and_ancestors).to eq([ folder ])
+    end
+
+    it 'returns the chain ordered from the root down to itself' do
+      grandparent = create(:folder, name: 'Grandparent')
+      parent = create(:folder, name: 'Parent', parent: grandparent, user: grandparent.user)
+      folder = create(:folder, name: 'Child', parent: parent, user: grandparent.user)
+
+      expect(folder.self_and_ancestors).to eq([ grandparent, parent, folder ])
+    end
+  end
 end

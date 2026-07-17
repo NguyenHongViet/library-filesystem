@@ -50,18 +50,27 @@ describe('FileDropzone', () => {
     const zone = screen.getByTestId('dropzone')
     const file = makeFile('dropped.txt')
 
-    fireEvent.dragOver(zone)
+    fireEvent.dragOver(zone, { dataTransfer: { types: ['Files'] } })
     expect(screen.getByText('Drop files to upload')).toBeInTheDocument()
 
     fireEvent.drop(zone, { dataTransfer: { files: [file] } })
     expect(onDrop).toHaveBeenCalledWith([file])
   })
 
+  it('ignores drag over for in-app drags without files', () => {
+    setup()
+    const zone = screen.getByTestId('dropzone')
+
+    fireEvent.dragOver(zone, { dataTransfer: { types: ['text/plain'] } })
+
+    expect(screen.queryByText('Drop files to upload')).not.toBeInTheDocument()
+  })
+
   it('hides the overlay when the drag leaves', () => {
     setup()
     const zone = screen.getByTestId('dropzone')
 
-    fireEvent.dragOver(zone)
+    fireEvent.dragOver(zone, { dataTransfer: { types: ['Files'] } })
     expect(screen.getByText('Drop files to upload')).toBeInTheDocument()
 
     fireEvent.dragLeave(zone)

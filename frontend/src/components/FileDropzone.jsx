@@ -21,10 +21,14 @@ function FileDropzone({ onDrop, loading = false, children, ref }) {
     event.preventDefault()
     setActive(false)
     if (loading) return
-    emit(event.dataTransfer.files)
+    emit(event.dataTransfer?.files)
   }
 
+  // Ignore in-app drags (e.g. moving a document row); only react to OS file drags.
+  const hasFiles = (event) => Array.from(event.dataTransfer?.types || []).includes('Files')
+
   const handleDragOver = (event) => {
+    if (!hasFiles(event)) return
     event.preventDefault()
     if (!loading) setActive(true)
   }

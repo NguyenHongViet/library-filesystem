@@ -41,4 +41,88 @@ RSpec.describe "Api::V1::Folders", type: :request do
       expect(names).to eq([ "Child" ])
     end
   end
+
+  describe "GET /api/v1/folders/:id" do
+    it "returns 401 when not signed in" do
+      folder = create(:folder)
+      get "/api/v1/folders/#{folder.id}"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it "returns the folder and its breadcrumb from root to self" do
+      sign_in_user
+      grandparent = create(:folder, user: user, name: "Grandparent")
+      parent = create(:folder, user: user, name: "Parent", parent: grandparent)
+      folder = create(:folder, user: user, name: "Current", parent: parent)
+
+      get "/api/v1/folders/#{folder.id}"
+
+      expect(response).to have_http_status(:ok)
+      body = JSON.parse(response.body)
+      expect(body.dig("folder", "id")).to eq(folder.id)
+      expect(body["breadcrumb"].map { |f| f["name"] }).to eq([ "Grandparent", "Parent", "Current" ])
+    end
+
+    it "returns 404 for a folder owned by someone else" do
+      sign_in_user
+      other = create(:folder)
+      get "/api/v1/folders/#{other.id}"
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "POST /api/v1/folders" do
+    it "returns 401 when not signed in" do
+      post "/api/v1/folders", params: { name: "New" }
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it "creates a root folder for the current user" do
+      sign_in_user
+
+      expect do
+        post "/api/v1/folders", params: { name: "Reports" }
+      end.to change(user.folders, :count).by(1)
+
+      expect(response).to have_http_status(:created)
+      body = JSON.parse(response.body)["folder"]
+      expect(body["name"]).to eq("Reports")
+      expect(body["parent_id"]).to be_nil
+    end
+
+    it "creates a nested folder under a parent the user owns" do
+      sign_in_user
+      parent = create(:folder, user: user)
+
+      post "/api/v1/folders", params: { name: "Nested", parent_id: parent.id }
+
+      expect(response).to have_http_status(:created)
+      expect(JSON.parse(response.body).dig("folder", "parent_id")).to eq(parent.id)
+    end
+
+    it "returns 404 when the parent belongs to someone else" do
+      sign_in_user
+      other_parent = create(:folder)
+
+      post "/api/v1/folders", params: { name: "Nested", parent_id: other_parent.id }
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "returns 422 when the name is blank" do
+      sign_in_user
+      post "/api/v1/folders", params: { name: "" }
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(JSON.parse(response.body)["errors"]).to include("Name can't be blank")
+    end
+
+    it "returns 422 when a sibling folder already has the same name" do
+      sign_in_user
+      create(:folder, user: user, name: "Dup")
+
+      post "/api/v1/folders", params: { name: "Dup" }
+
+      expect(response).to have_http_status(:unprocessable_content)
+    end
+  end
 end
