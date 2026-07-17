@@ -354,6 +354,18 @@ describe('filesApi', () => {
     expect(options.body.get('folder_id')).toBe('3')
   })
 
+  it('sends relative_path when uploading a file inside a folder tree', async () => {
+    global.fetch.mockResolvedValue(
+      mockResponse({ status: 201, json: { document: { id: 3 } } }),
+    )
+    const file = new File(['hi'], 'a.txt', { type: 'text/plain' })
+
+    await filesApi.uploadDocument(file, 3, 'MyFolder/Sub')
+
+    const [, options] = global.fetch.mock.calls[0]
+    expect(options.body.get('relative_path')).toBe('MyFolder/Sub')
+  })
+
   it('surfaces validation errors joined into one message', async () => {
     global.fetch.mockResolvedValue(
       mockResponse({ ok: false, status: 422, json: { errors: ['File is required.'] } }),

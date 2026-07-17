@@ -66,8 +66,15 @@ module Api
         uploaded = params[:file]
         return render json: { errors: [ "File is required." ] }, status: :unprocessable_content if uploaded.blank?
 
+        # When uploading a folder, relative_path recreates the sub-folder chain
+        # (under the current folder) that the file belongs in.
+        target_folder = @folder
+        if params[:relative_path].present?
+          target_folder = current_user.find_or_create_folder_path!(params[:relative_path], parent: @folder)
+        end
+
         name = params[:name].presence || uploaded.original_filename
-        existing = current_user.documents.kept.find_by(name: name, folder_id: @folder&.id)
+        existing = current_user.documents.kept.find_by(name: name, folder_id: target_folder&.id)
 
         # Re-uploading a file with the same name in the same folder overwrites it
         # and keeps the previous contents as an older version.
@@ -78,7 +85,7 @@ module Api
 
         document = current_user.documents.new(
           name: name,
-          folder: @folder,
+          folder: target_folder,
           content_type: uploaded.content_type,
           byte_size: uploaded.size
         )

@@ -1,27 +1,105 @@
 import { useImperativeHandle, useRef, useState } from 'react'
-import { Box, LoadingOverlay, Overlay, Stack, Text } from '@mantine/core'
+import { Box, LoadingOverlay, Overlay, Progress, Stack, Text } from '@mantine/core'
 import { IconUpload } from '@tabler/icons-react'
 
-function FileDropzone({ onDrop, loading = false, children, ref }) {
-  const inputRef = useRef(null)
+// Normalize a FileList (from an <input>) into { file, path } items. For a
+// directory pick, webkitRelativePath holds the file's path within the folder.
+function itemsFromFileList(fileList) {
+  return Array.from(fileList || []).map((file) => {
+    const parts = (file.webkitRelativePath || '').split('/')
+    parts.pop() // drop the filename, keep the directory path
+    return { file, path: parts.join('/') }
+  })
+}
+
+function readAllEntries(reader) {
+  return new Promise((resolve, reject) => {
+    const entries = []
+    const readBatch = () =>
+      reader.readEntries((batch) => {
+        if (batch.length === 0) resolve(entries)
+        else {
+          entries.push(...batch)
+          readBatch()
+        }
+      }, reject)
+    readBatch()
+  })
+}
+
+// Recursively collect files from a dropped filesystem entry, tracking the
+// directory path each file lives in so the structure can be recreated.
+async function collectEntry(entry, dirPath) {
+  if (entry.isFile) {
+    const file = await new Promise((resolve, reject) => entry.file(resolve, reject))
+    return [{ file, path: dirPath }]
+  }
+  const childDir = dirPath ? `${dirPath}/${entry.name}` : entry.name
+  const children = await readAllEntries(entry.createReader())
+  const collected = []
+  for (const child of children) {
+    collected.push(...(await collectEntry(child, childDir)))
+  }
+  return collected
+}
+
+function UploadingIndicator({ progress }) {
+  if (!progress || progress.total === 0) {
+    return <Text fw={600}>Uploading…</Text>
+  }
+  const percent = Math.round((progress.done / progress.total) * 100)
+  return (
+    <Stack align="center" gap="xs" w={220}>
+      <Text fw={600}>
+        Uploading {progress.done}/{progress.total}…
+      </Text>
+      <Progress value={percent} w="100%" aria-label="Upload progress" />
+    </Stack>
+  )
+}
+
+function FileDropzone({ onDrop, loading = false, progress = null, children, ref }) {
+  const fileInputRef = useRef(null)
+  const folderInputRef = useRef(null)
   const [active, setActive] = useState(false)
 
   const open = () => {
-    if (!loading) inputRef.current?.click()
+    if (!loading) fileInputRef.current?.click()
   }
 
-  useImperativeHandle(ref, () => ({ open }))
-
-  const emit = (fileList) => {
-    const files = Array.from(fileList || [])
-    if (files.length > 0) onDrop(files)
+  const openFolder = () => {
+    if (!loading) folderInputRef.current?.click()
   }
 
-  const handleDrop = (event) => {
+  useImperativeHandle(ref, () => ({ open, openFolder }))
+
+  const emit = (items) => {
+    if (items.length > 0) onDrop(items)
+  }
+
+  const handleDrop = async (event) => {
     event.preventDefault()
     setActive(false)
     if (loading) return
-    emit(event.dataTransfer?.files)
+
+    const transfer = event.dataTransfer
+    // Capture entries synchronously — the DataTransfer is invalid after await.
+    const entries = transfer?.items
+      ? Array.from(transfer.items)
+          .map((item) => item.webkitGetAsEntry?.())
+          .filter(Boolean)
+      : []
+
+    if (entries.length === 0) {
+      emit(itemsFromFileList(transfer?.files))
+      return
+    }
+
+    const items = []
+    for (const entry of entries) {
+      items.push(...(await collectEntry(entry, '')))
+    }
+    emit(items)
   }
 
   // Ignore in-app drags (e.g. moving a document row); only react to OS file drags.
@@ -39,7 +117,7 @@ function FileDropzone({ onDrop, loading = false, children, ref }) {
   }
 
   const handleInputChange = (event) => {
-    emit(event.currentTarget.files)
+    emit(itemsFromFileList(event.currentTarget.files))
     event.currentTarget.value = ''
   }
 
@@ -53,7 +131,7 @@ function FileDropzone({ onDrop, loading = false, children, ref }) {
       onDragLeave={handleDragLeave}
     >
       <input
-        ref={inputRef}
+        ref={fileInputRef}
         type="file"
         multiple
         hidden
@@ -61,11 +139,21 @@ function FileDropzone({ onDrop, loading = false, children, ref }) {
         data-testid="file-input"
         onChange={handleInputChange}
       />
+      <input
+        ref={folderInputRef}
+        type="file"
+        multiple
+        webkitdirectory=""
+        hidden
+        aria-hidden="true"
+        data-testid="folder-input"
+        onChange={handleInputChange}
+      />
 
       <LoadingOverlay
         visible={loading}
         overlayProps={{ radius: 'md', blur: 1 }}
-        loaderProps={{ children: <Text fw={600}>Uploading…</Text> }}
+        loaderProps={{ children: <UploadingIndicator progress={progress} /> }}
       />
 
       {children}
@@ -86,7 +174,7 @@ function FileDropzone({ onDrop, loading = false, children, ref }) {
         >
           <Stack align="center" gap="xs">
             <IconUpload size={40} stroke={1.5} />
-            <Text fw={600}>Drop files to upload</Text>
+            <Text fw={600}>Drop files and folders to upload</Text>
           </Stack>
         </Overlay>
       )}

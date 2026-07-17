@@ -89,7 +89,7 @@ describe('HomePage', () => {
       dataTransfer: { files: [file] },
     })
 
-    await waitFor(() => expect(filesApi.uploadDocument).toHaveBeenCalledWith(file, null))
+    await waitFor(() => expect(filesApi.uploadDocument).toHaveBeenCalledWith(file, null, ''))
     expect(await screen.findByText('new.txt')).toBeInTheDocument()
     expect(filesApi.listDocuments).toHaveBeenCalledTimes(2)
   })
@@ -111,7 +111,55 @@ describe('HomePage', () => {
     const file = new File(['hi'], 'picked.txt', { type: 'text/plain' })
     await user.upload(input, file)
 
-    await waitFor(() => expect(filesApi.uploadDocument).toHaveBeenCalledWith(file, null))
+    await waitFor(() => expect(filesApi.uploadDocument).toHaveBeenCalledWith(file, null, ''))
+  })
+
+  it('uploads a folder selected through the Upload folder button', async () => {
+    const user = userEvent.setup()
+    filesApi.uploadDocument.mockResolvedValue({ document: { id: 6 } })
+    renderWithMantine(<HomePage />)
+
+    await screen.findByText(
+      'This folder is empty. Drag files here or use the Upload button.',
+    )
+
+    const folderInput = screen.getByTestId('folder-input')
+    const clickSpy = vi.spyOn(folderInput, 'click')
+    await user.click(screen.getByRole('button', { name: /upload folder/i }))
+    expect(clickSpy).toHaveBeenCalled()
+
+    const file = new File(['hi'], 'nested.txt', { type: 'text/plain' })
+    Object.defineProperty(file, 'webkitRelativePath', { value: 'MyFolder/nested.txt' })
+    fireEvent.change(folderInput, { target: { files: [file] } })
+
+    await waitFor(() =>
+      expect(filesApi.uploadDocument).toHaveBeenCalledWith(file, null, 'MyFolder'),
+    )
+  })
+
+  it('shows upload progress while files are uploading', async () => {
+    let resolveUpload
+    filesApi.uploadDocument.mockReturnValue(
+      new Promise((resolve) => {
+        resolveUpload = resolve
+      }),
+    )
+    renderWithMantine(<HomePage />)
+    await screen.findByText(
+      'This folder is empty. Drag files here or use the Upload button.',
+    )
+
+    const file = new File(['hi'], 'new.txt', { type: 'text/plain' })
+    fireEvent.drop(screen.getByTestId('dropzone'), {
+      dataTransfer: { files: [file] },
+    })
+
+    expect(await screen.findByText('Uploading 0/1…')).toBeInTheDocument()
+
+    resolveUpload({ document: { id: 1 } })
+    await waitFor(() =>
+      expect(screen.queryByText('Uploading 0/1…')).not.toBeInTheDocument(),
+    )
   })
 
   it('shows an error when an upload fails', async () => {

@@ -115,6 +115,34 @@ RSpec.describe "Api::V1::Documents", type: :request do
       expect(response).to have_http_status(:unprocessable_content)
       expect(JSON.parse(response.body)["errors"]).to include("File is required.")
     end
+
+    it "recreates the folder chain from relative_path when uploading a folder" do
+      sign_in_user
+
+      post "/api/v1/documents", params: {
+        file: fixture_file_upload("sample.txt", "text/plain"),
+        relative_path: "MyFolder/Sub"
+      }
+
+      expect(response).to have_http_status(:created)
+      document = user.documents.find(JSON.parse(response.body).dig("document", "id"))
+      expect(document.folder.path).to eq("MyFolder/Sub")
+    end
+
+    it "recreates the folder chain under the current folder" do
+      sign_in_user
+      base = create(:folder, user: user, name: "Base")
+
+      post "/api/v1/documents", params: {
+        file: fixture_file_upload("sample.txt", "text/plain"),
+        folder_id: base.id,
+        relative_path: "Nested"
+      }
+
+      expect(response).to have_http_status(:created)
+      document = user.documents.find(JSON.parse(response.body).dig("document", "id"))
+      expect(document.folder.path).to eq("Base/Nested")
+    end
   end
 
   describe "POST /api/v1/documents (overwriting same name and location)" do

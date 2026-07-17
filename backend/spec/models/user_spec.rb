@@ -33,5 +33,15 @@ RSpec.describe User, type: :model do
       expect(leaf.parent).to eq(existing)
       expect(user.folders.where(name: 'Projects').count).to eq(1)
     end
+
+    it 'creates the chain under a given parent folder' do
+      base = create(:folder, user: user, name: 'Base')
+
+      leaf = user.find_or_create_folder_path!('Sub/Deep', parent: base)
+
+      expect(leaf.name).to eq('Deep')
+      expect(leaf.parent.name).to eq('Sub')
+      expect(leaf.parent.parent).to eq(base)
+    end
   end
 end

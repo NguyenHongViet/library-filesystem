@@ -24,6 +24,7 @@ import {
   IconFile,
   IconFolder,
   IconFolderPlus,
+  IconFolderUp,
   IconTrash,
   IconUpload,
 } from '@tabler/icons-react'
@@ -40,6 +41,7 @@ function HomePage() {
   const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(null)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState(null)
   const [newFolderName, setNewFolderName] = useState('')
@@ -73,18 +75,22 @@ function HomePage() {
   }, [load])
 
   const handleUpload = useCallback(
-    async (files) => {
+    async (items) => {
       setUploading(true)
+      setUploadProgress({ done: 0, total: items.length })
       setError(null)
       try {
-        for (const file of files) {
-          await filesApi.uploadDocument(file, folderId)
+        for (let index = 0; index < items.length; index += 1) {
+          const { file, path } = items[index]
+          await filesApi.uploadDocument(file, folderId, path)
+          setUploadProgress({ done: index + 1, total: items.length })
         }
         await load()
       } catch (err) {
         setError(err.message)
       } finally {
         setUploading(false)
+        setUploadProgress(null)
       }
     },
     [folderId, load],
@@ -243,6 +249,14 @@ function HomePage() {
             New folder
           </Button>
           <Button
+            variant="default"
+            leftSection={<IconFolderUp size={16} />}
+            onClick={() => dropzoneRef.current?.openFolder()}
+            loading={uploading}
+          >
+            Upload folder
+          </Button>
+          <Button
             leftSection={<IconUpload size={16} />}
             onClick={() => dropzoneRef.current?.open()}
             loading={uploading}
@@ -262,7 +276,12 @@ function HomePage() {
         </Alert>
       )}
 
-      <FileDropzone ref={dropzoneRef} onDrop={handleUpload} loading={uploading}>
+      <FileDropzone
+        ref={dropzoneRef}
+        onDrop={handleUpload}
+        loading={uploading}
+        progress={uploadProgress}
+      >
         <Card withBorder padding="lg" mih={160} style={{ flex: 1 }}>
           {loading ? (
             <Center py="xl">

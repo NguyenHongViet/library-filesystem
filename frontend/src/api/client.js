@@ -90,10 +90,11 @@ export const filesApi = {
   sharedDocumentDownloadUrl: (id) => `/api/v1/shared/documents/${id}/download`,
   sharedFolderDownloadUrl: (id) => `/api/v1/shared/folders/${id}/download`,
   restoreDocument: (id) => request(`/documents/${id}/restore`, { method: 'POST' }),
-  uploadDocument: (file, folderId) => {
+  uploadDocument: (file, folderId, relativePath) => {
     const formData = new FormData()
     formData.append('file', file)
     if (folderId != null) formData.append('folder_id', folderId)
+    if (relativePath) formData.append('relative_path', relativePath)
     return upload('/documents', formData)
   },
 }
