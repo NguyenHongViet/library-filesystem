@@ -7,6 +7,14 @@ class User < ApplicationRecord
   has_many :folders, dependent: :destroy
   has_many :documents, dependent: :destroy
 
+  ROLES = %w[member admin].freeze
+
+  validates :role, inclusion: { in: ROLES }
+
+  def admin?
+    role == "admin"
+  end
+
   # Walks a slash-separated path under `parent`, creating any missing folder
   # along the way, and returns the leaf folder. Used when restoring a file whose
   # folder tree was hard-deleted, and when uploading a folder.

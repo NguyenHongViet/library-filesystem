@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { authApi, filesApi } from './client'
+import { adminApi, authApi, filesApi } from './client'
 
 function mockResponse({ ok = true, status = 200, json = null, contentType = 'application/json' }) {
   return {
@@ -430,6 +430,63 @@ describe('filesApi', () => {
 
     await expect(filesApi.uploadDocument(file)).rejects.toThrow(
       'Upload failed. Please try again.',
+    )
+  })
+})
+
+describe('adminApi', () => {
+  beforeEach(() => {
+    global.fetch = vi.fn()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('lists users', async () => {
+    global.fetch.mockResolvedValue(mockResponse({ json: { users: [] } }))
+
+    await adminApi.listUsers()
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/admin/users',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('creates a user', async () => {
+    global.fetch.mockResolvedValue(mockResponse({ status: 201, json: { user: { id: 1 } } }))
+
+    await adminApi.createUser({ email: 'a@example.com', role: 'admin', password: 'secret123' })
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/admin/users',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ email: 'a@example.com', role: 'admin', password: 'secret123' }),
+      }),
+    )
+  })
+
+  it('updates a user', async () => {
+    global.fetch.mockResolvedValue(mockResponse({ json: { user: { id: 5 } } }))
+
+    await adminApi.updateUser(5, { name: 'New' })
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/admin/users/5',
+      expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ name: 'New' }) }),
+    )
+  })
+
+  it('deletes a user', async () => {
+    global.fetch.mockResolvedValue(mockResponse({ status: 204, json: null, contentType: null }))
+
+    await adminApi.deleteUser(5)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/admin/users/5',
+      expect.objectContaining({ method: 'DELETE' }),
     )
   })
 })

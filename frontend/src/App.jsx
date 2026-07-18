@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage'
 import HomePage from './pages/HomePage'
 import TrashPage from './pages/TrashPage'
 import SharedPage from './pages/SharedPage'
+import UsersPage from './pages/UsersPage'
 import { useAuth } from './auth/AuthContext'
 
 function App() {
@@ -29,6 +30,8 @@ function App() {
         <TrashPage />
       ) : view === 'shared' ? (
         <SharedPage />
+      ) : view === 'users' && user.role === 'admin' ? (
+        <UsersPage />
       ) : (
         <HomePage />
       )}

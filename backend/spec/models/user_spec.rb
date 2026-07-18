@@ -12,6 +12,15 @@ RSpec.describe User, type: :model do
     expect(create(:user).role).to eq('member')
   end
 
+  it { is_expected.to validate_inclusion_of(:role).in_array(%w[member admin]) }
+
+  describe '#admin?' do
+    it 'is true only for the admin role' do
+      expect(create(:user, :admin).admin?).to be(true)
+      expect(create(:user).admin?).to be(false)
+    end
+  end
+
   describe '#find_or_create_folder_path!' do
     let(:user) { create(:user) }
 

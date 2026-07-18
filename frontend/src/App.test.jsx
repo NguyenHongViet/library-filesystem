@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderWithProviders, screen, waitFor } from './test-utils'
 import App from './App'
-import { authApi, filesApi } from './api/client'
+import { adminApi, authApi, filesApi } from './api/client'
 
 vi.mock('./api/client', () => ({
   authApi: {
@@ -18,6 +18,9 @@ vi.mock('./api/client', () => ({
     folderDownloadUrl: (id) => `/api/v1/folders/${id}/download`,
     rootDownloadUrl: () => '/api/v1/folders/download_root',
   },
+  adminApi: {
+    listUsers: vi.fn(),
+  },
 }))
 
 describe('App', () => {
@@ -27,6 +30,7 @@ describe('App', () => {
     filesApi.listDocuments.mockResolvedValue({ documents: [] })
     filesApi.listTrash.mockResolvedValue({ folders: [], documents: [] })
     filesApi.listSharedUsers.mockResolvedValue({ users: [] })
+    adminApi.listUsers.mockResolvedValue({ users: [] })
   })
 
   it('shows the login page when unauthenticated', async () => {
@@ -99,6 +103,24 @@ describe('App', () => {
       await screen.findByRole('heading', { level: 2, name: 'Shared files' }),
     ).toBeInTheDocument()
     expect(filesApi.listSharedUsers).toHaveBeenCalled()
+  })
+
+  it('lets an admin open the user management page', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    const user = userEvent.setup()
+    authApi.me.mockResolvedValue({
+      user: { id: 1, email: 'admin@example.com', name: 'Admin User', role: 'admin' },
+    })
+
+    renderWithProviders(<App />)
+    await screen.findByRole('heading', { level: 2, name: 'My files' })
+
+    await user.click(screen.getByRole('button', { name: /manage users/i }))
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Manage users' }),
+    ).toBeInTheDocument()
+    expect(adminApi.listUsers).toHaveBeenCalled()
   })
 
   it('signs the user out', async () => {

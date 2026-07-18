@@ -52,6 +52,14 @@ export const authApi = {
   me: () => request('/me'),
 }
 
+export const adminApi = {
+  listUsers: () => request('/admin/users'),
+  createUser: (attrs) => request('/admin/users', { method: 'POST', body: attrs }),
+  updateUser: (id, attrs) =>
+    request(`/admin/users/${id}`, { method: 'PATCH', body: attrs }),
+  deleteUser: (id) => request(`/admin/users/${id}`, { method: 'DELETE' }),
+}
+
 function query(params) {
   const search = new URLSearchParams(
     Object.entries(params).filter(([, value]) => value != null),

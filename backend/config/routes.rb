@@ -27,6 +27,10 @@ Rails.application.routes.draw do
         member { get :download }
         collection { get :download_root }
       end
+
+      namespace :admin do
+        resources :users, only: [ :index, :create, :update, :destroy ]
+      end
       get "trash" => "trash#index"
       get "search" => "search#index"
       get "shared/users" => "shared#users"

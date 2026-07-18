@@ -5,6 +5,12 @@ class ApplicationController < ActionController::API
     render json: { error: "You need to sign in before continuing." }, status: :unauthorized
   end
 
+  def require_admin!
+    return if current_user&.admin?
+
+    render json: { error: "Admin access is required." }, status: :forbidden
+  end
+
   def user_json(user)
     {
       id: user.id,

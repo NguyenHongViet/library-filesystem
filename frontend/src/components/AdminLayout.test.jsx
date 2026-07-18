@@ -67,6 +67,39 @@ describe('AdminLayout', () => {
     expect(onNavigate).toHaveBeenCalledWith('files')
   })
 
+  it('shows a Manage users button for admins and reports the target', async () => {
+    authApi.me.mockResolvedValue({
+      user: { id: 1, email: 'admin@example.com', name: 'Admin', role: 'admin' },
+    })
+    const user = userEvent.setup()
+    const onNavigate = vi.fn()
+
+    renderWithProviders(
+      <AdminLayout view="files" onNavigate={onNavigate}>
+        <div>content</div>
+      </AdminLayout>,
+    )
+
+    const button = await screen.findByRole('button', { name: /manage users/i })
+    await user.click(button)
+    expect(onNavigate).toHaveBeenCalledWith('users')
+  })
+
+  it('hides the Manage users button for non-admins', async () => {
+    authApi.me.mockResolvedValue({
+      user: { id: 2, email: 'member@example.com', name: 'Member', role: 'member' },
+    })
+
+    renderWithProviders(
+      <AdminLayout view="files" onNavigate={vi.fn()}>
+        <div>content</div>
+      </AdminLayout>,
+    )
+
+    await screen.findByText('Member')
+    expect(screen.queryByRole('button', { name: /manage users/i })).not.toBeInTheDocument()
+  })
+
   it('omits navigation links when no onNavigate handler is given', () => {
     authApi.me.mockRejectedValue(new Error('Unauthorized'))
 

@@ -15,6 +15,7 @@ import {
   IconSun,
   IconTrash,
   IconUsers,
+  IconUsersGroup,
 } from '@tabler/icons-react'
 import { useAuth } from '../auth/AuthContext'
 
@@ -79,6 +80,16 @@ function AdminLayout({ children, view, onNavigate }) {
               <Text size="sm" c="dimmed">
                 {user.name || user.email}
               </Text>
+            )}
+            {user?.role === 'admin' && onNavigate && (
+              <Button
+                variant={view === 'users' ? 'light' : 'default'}
+                size="xs"
+                leftSection={<IconUsersGroup size={16} />}
+                onClick={() => onNavigate('users')}
+              >
+                Manage users
+              </Button>
             )}
             <ColorSchemeToggle />
             {user && (
