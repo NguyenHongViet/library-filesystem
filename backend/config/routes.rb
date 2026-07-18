@@ -28,8 +28,10 @@ Rails.application.routes.draw do
         collection { get :download_root }
       end
       get "trash" => "trash#index"
+      get "search" => "search#index"
       get "shared/users" => "shared#users"
       get "shared/users/:user_id/entries" => "shared#entries"
+      get "shared/users/:user_id/search" => "shared#search"
       get "shared/documents/:id/download" => "shared#download_document"
       get "shared/folders/:id/download" => "shared#download_folder"
       post "shared/documents/:id/copy" => "shared#copy_document"

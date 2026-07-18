@@ -25,6 +25,7 @@ import {
   IconFolder,
   IconFolderPlus,
   IconFolderUp,
+  IconSearch,
   IconTrash,
   IconUpload,
 } from '@tabler/icons-react'
@@ -47,6 +48,9 @@ function HomePage() {
   const [newFolderName, setNewFolderName] = useState('')
   const [dropTargetId, setDropTargetId] = useState(null)
   const [selectedDocumentId, setSelectedDocumentId] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState(null)
+  const [searching, setSearching] = useState(false)
   const [modalOpened, modal] = useDisclosure(false)
   const draggingIdRef = useRef(null)
   const dropzoneRef = useRef(null)
@@ -73,6 +77,32 @@ function HomePage() {
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    const query = searchQuery.trim()
+    if (!query) {
+      setSearchResults(null)
+      return undefined
+    }
+    const timer = setTimeout(async () => {
+      setSearching(true)
+      setError(null)
+      try {
+        setSearchResults(await filesApi.search(query))
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setSearching(false)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  const openFolder = useCallback((folderId) => {
+    setSearchQuery('')
+    setSearchResults(null)
+    setFolderId(folderId)
+  }, [])
 
   const handleUpload = useCallback(
     async (items) => {
@@ -191,6 +221,10 @@ function HomePage() {
   )
 
   const isEmpty = folders.length === 0 && documents.length === 0
+  const isSearching = searchQuery.trim().length > 0
+  const hasResults =
+    searchResults &&
+    (searchResults.folders.length > 0 || searchResults.documents.length > 0)
 
   if (selectedDocumentId) {
     return (
@@ -207,7 +241,7 @@ function HomePage() {
   return (
     <Stack gap="lg" mih="calc(100dvh - 60px - 2 * var(--mantine-spacing-md))">
       <Breadcrumbs>
-        <Anchor component="button" type="button" onClick={() => setFolderId(null)}>
+        <Anchor component="button" type="button" onClick={() => openFolder(null)}>
           My files
         </Anchor>
         {breadcrumb.map((folder, index) =>
@@ -220,7 +254,7 @@ function HomePage() {
               key={folder.id}
               component="button"
               type="button"
-              onClick={() => setFolderId(folder.id)}
+              onClick={() => openFolder(folder.id)}
             >
               {folder.name}
             </Anchor>
@@ -276,12 +310,97 @@ function HomePage() {
         </Alert>
       )}
 
-      <FileDropzone
-        ref={dropzoneRef}
-        onDrop={handleUpload}
-        loading={uploading}
-        progress={uploadProgress}
-      >
+      <TextInput
+        placeholder="Search files and folders by name"
+        leftSection={<IconSearch size={16} />}
+        value={searchQuery}
+        onChange={(event) => setSearchQuery(event.currentTarget.value)}
+        aria-label="Search files and folders"
+      />
+
+      {isSearching ? (
+        <Card withBorder padding="lg" mih={160}>
+          {searching ? (
+            <Center py="xl">
+              <Loader />
+            </Center>
+          ) : !hasResults ? (
+            <Text c="dimmed" ta="center" py="xl">
+              No matches for “{searchQuery.trim()}”.
+            </Text>
+          ) : (
+            <Table verticalSpacing="sm" highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Name</Table.Th>
+                  <Table.Th>Location</Table.Th>
+                  <Table.Th>Type</Table.Th>
+                  <Table.Th>Size</Table.Th>
+                  <Table.Th w={60} />
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {searchResults.folders.map((folder) => (
+                  <Table.Tr
+                    key={`search-folder-${folder.id}`}
+                    data-testid={`search-folder-${folder.id}`}
+                    onClick={() => openFolder(folder.id)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <Table.Td>
+                      <Group gap="xs" wrap="nowrap">
+                        <IconFolder size={18} />
+                        <Text>{folder.name}</Text>
+                      </Group>
+                    </Table.Td>
+                    <Table.Td>{folder.location || 'My files'}</Table.Td>
+                    <Table.Td>Folder</Table.Td>
+                    <Table.Td>—</Table.Td>
+                    <Table.Td />
+                  </Table.Tr>
+                ))}
+                {searchResults.documents.map((document) => (
+                  <Table.Tr
+                    key={`search-document-${document.id}`}
+                    data-testid={`search-document-${document.id}`}
+                    onClick={() => setSelectedDocumentId(document.id)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <Table.Td>
+                      <Group gap="xs" wrap="nowrap">
+                        <IconFile size={18} />
+                        <Text>{document.name}</Text>
+                      </Group>
+                    </Table.Td>
+                    <Table.Td>{document.location || 'My files'}</Table.Td>
+                    <Table.Td>{document.content_type || 'File'}</Table.Td>
+                    <Table.Td>{formatBytes(document.byte_size)}</Table.Td>
+                    <Table.Td ta="right">
+                      <Tooltip label="Download" withArrow>
+                        <ActionIcon
+                          component="a"
+                          href={filesApi.documentDownloadUrl(document.id)}
+                          variant="subtle"
+                          aria-label={`Download ${document.name}`}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <IconDownload size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          )}
+        </Card>
+      ) : (
+        <FileDropzone
+          ref={dropzoneRef}
+          onDrop={handleUpload}
+          loading={uploading}
+          progress={uploadProgress}
+        >
         <Card withBorder padding="lg" mih={160} style={{ flex: 1 }}>
           {loading ? (
             <Center py="xl">
@@ -435,7 +554,8 @@ function HomePage() {
             </Table>
           )}
         </Card>
-      </FileDropzone>
+        </FileDropzone>
+      )}
 
       <Modal
         opened={modalOpened}

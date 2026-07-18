@@ -84,6 +84,9 @@ export const filesApi = {
   deleteFolder: (id) => request(`/folders/${id}`, { method: 'DELETE' }),
   deleteDocument: (id) => request(`/documents/${id}`, { method: 'DELETE' }),
   listTrash: () => request('/trash'),
+  search: (q) => request(`/search${query({ q })}`),
+  searchSharedUser: (userId, q) =>
+    request(`/shared/users/${userId}/search${query({ q })}`),
   listSharedUsers: () => request('/shared/users'),
   listSharedEntries: (userId, parentId) =>
     request(`/shared/users/${userId}/entries${query({ parent_id: parentId })}`),

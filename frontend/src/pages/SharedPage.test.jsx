@@ -13,6 +13,7 @@ vi.mock('../api/client', () => ({
     copySharedDocument: vi.fn(),
     copySharedFolder: vi.fn(),
     listFolders: vi.fn(),
+    searchSharedUser: vi.fn(),
   },
 }))
 
@@ -22,6 +23,7 @@ describe('SharedPage', () => {
     filesApi.listSharedUsers.mockResolvedValue({ users: [] })
     filesApi.listSharedEntries.mockResolvedValue({ folders: [], documents: [] })
     filesApi.listFolders.mockResolvedValue({ folders: [] })
+    filesApi.searchSharedUser.mockResolvedValue({ folders: [], documents: [] })
   })
 
   it('shows an empty state when there are no other users', async () => {
@@ -302,6 +304,76 @@ describe('SharedPage', () => {
 
     // Modal opened (folder picker loads), but we did not navigate deeper.
     expect(filesApi.listSharedEntries).not.toHaveBeenCalled()
+  })
+
+  it("searches a selected user's shared files", async () => {
+    const user = userEvent.setup()
+    filesApi.listSharedUsers.mockResolvedValue({
+      users: [{ id: 1, name: 'Alice', email: 'alice@example.com' }],
+    })
+    filesApi.searchSharedUser.mockResolvedValue({
+      folders: [{ id: 5, name: 'Reports', parent_id: null }],
+      documents: [{ id: 9, name: 'report.txt', content_type: 'text/plain', byte_size: 4 }],
+    })
+
+    renderWithMantine(<SharedPage />)
+    await user.click(await screen.findByText('Alice'))
+
+    await user.type(screen.getByLabelText('Search shared files'), 'report')
+
+    expect(await screen.findByText('report.txt')).toBeInTheDocument()
+    expect(screen.getByText('Reports')).toBeInTheDocument()
+    await waitFor(() => expect(filesApi.searchSharedUser).toHaveBeenCalledWith(1, 'report'))
+  })
+
+  it('opens a folder from shared search results, leaving search mode', async () => {
+    const user = userEvent.setup()
+    filesApi.listSharedUsers.mockResolvedValue({
+      users: [{ id: 1, name: 'Alice', email: 'alice@example.com' }],
+    })
+    filesApi.searchSharedUser.mockResolvedValue({
+      folders: [{ id: 5, name: 'Reports', parent_id: null }],
+      documents: [],
+    })
+
+    renderWithMantine(<SharedPage />)
+    await user.click(await screen.findByText('Alice'))
+    await user.type(screen.getByLabelText('Search shared files'), 'report')
+    await screen.findByTestId('shared-folder-5')
+
+    filesApi.listSharedEntries.mockClear()
+    await user.click(screen.getByTestId('shared-folder-5'))
+
+    await waitFor(() => expect(filesApi.listSharedEntries).toHaveBeenCalledWith(1, 5))
+    expect(screen.getByLabelText('Search shared files')).toHaveValue('')
+  })
+
+  it('shows an error when a shared search fails', async () => {
+    const user = userEvent.setup()
+    filesApi.listSharedUsers.mockResolvedValue({
+      users: [{ id: 1, name: 'Alice', email: 'alice@example.com' }],
+    })
+    filesApi.searchSharedUser.mockRejectedValue(new Error('Search failed'))
+
+    renderWithMantine(<SharedPage />)
+    await user.click(await screen.findByText('Alice'))
+    await user.type(screen.getByLabelText('Search shared files'), 'x')
+
+    expect(await screen.findByText('Search failed')).toBeInTheDocument()
+  })
+
+  it('shows an empty state when a shared search has no matches', async () => {
+    const user = userEvent.setup()
+    filesApi.listSharedUsers.mockResolvedValue({
+      users: [{ id: 1, name: 'Alice', email: 'alice@example.com' }],
+    })
+    filesApi.searchSharedUser.mockResolvedValue({ folders: [], documents: [] })
+
+    renderWithMantine(<SharedPage />)
+    await user.click(await screen.findByText('Alice'))
+    await user.type(screen.getByLabelText('Search shared files'), 'zzz')
+
+    expect(await screen.findByText('No matches for “zzz”.')).toBeInTheDocument()
   })
 
   it('shows an empty state inside a user with nothing shared', async () => {

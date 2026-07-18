@@ -9,6 +9,7 @@ vi.mock('../api/client', () => ({
   filesApi: {
     listFolders: vi.fn(),
     listDocuments: vi.fn(),
+    search: vi.fn(),
     folderDownloadUrl: (id) => `/api/v1/folders/${id}/download`,
     rootDownloadUrl: () => '/api/v1/folders/download_root',
     getDocument: vi.fn(),
@@ -177,6 +178,134 @@ describe('HomePage', () => {
     expect(
       await screen.findByText('Upload failed. Please try again.'),
     ).toBeInTheDocument()
+  })
+
+  it('searches the library and shows matching files and folders with location', async () => {
+    const user = userEvent.setup()
+    filesApi.search.mockResolvedValue({
+      folders: [{ id: 3, name: 'Reports', location: null }],
+      documents: [
+        { id: 9, name: 'report.txt', content_type: 'text/plain', byte_size: 4, location: 'Reports' },
+      ],
+    })
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText(
+      'This folder is empty. Drag files here or use the Upload button.',
+    )
+
+    await user.type(screen.getByLabelText('Search files and folders'), 'report')
+
+    expect(await screen.findByText('report.txt')).toBeInTheDocument()
+    // Folder name + the document's location column both read "Reports".
+    expect(screen.getAllByText('Reports').length).toBeGreaterThanOrEqual(2)
+    await waitFor(() => expect(filesApi.search).toHaveBeenCalledWith('report'))
+  })
+
+  it('shows an empty state when a search has no matches', async () => {
+    const user = userEvent.setup()
+    filesApi.search.mockResolvedValue({ folders: [], documents: [] })
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText(
+      'This folder is empty. Drag files here or use the Upload button.',
+    )
+
+    await user.type(screen.getByLabelText('Search files and folders'), 'zzz')
+
+    expect(await screen.findByText('No matches for “zzz”.')).toBeInTheDocument()
+  })
+
+  it('opens a folder from search results, leaving search mode', async () => {
+    const user = userEvent.setup()
+    filesApi.search.mockResolvedValue({
+      folders: [{ id: 3, name: 'Reports', location: null }],
+      documents: [],
+    })
+    filesApi.getFolder.mockResolvedValue({
+      folder: { id: 3, name: 'Reports' },
+      breadcrumb: [{ id: 3, name: 'Reports' }],
+    })
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText(
+      'This folder is empty. Drag files here or use the Upload button.',
+    )
+    await user.type(screen.getByLabelText('Search files and folders'), 'report')
+    await user.click(await screen.findByTestId('search-folder-3'))
+
+    await waitFor(() => expect(filesApi.getFolder).toHaveBeenCalledWith(3))
+    expect(screen.getByLabelText('Search files and folders')).toHaveValue('')
+  })
+
+  it('shows an error when search fails', async () => {
+    const user = userEvent.setup()
+    filesApi.search.mockRejectedValue(new Error('Search failed'))
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText(
+      'This folder is empty. Drag files here or use the Upload button.',
+    )
+
+    await user.type(screen.getByLabelText('Search files and folders'), 'x')
+
+    expect(await screen.findByText('Search failed')).toBeInTheDocument()
+  })
+
+  it('downloads a search result file without opening its detail page', async () => {
+    const user = userEvent.setup()
+    filesApi.search.mockResolvedValue({
+      folders: [],
+      documents: [
+        { id: 9, name: 'report.txt', content_type: 'text/plain', byte_size: 4, location: null },
+      ],
+    })
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText(
+      'This folder is empty. Drag files here or use the Upload button.',
+    )
+    await user.type(screen.getByLabelText('Search files and folders'), 'report')
+    await screen.findByTestId('search-document-9')
+
+    const link = screen.getByRole('link', { name: 'Download report.txt' })
+    link.addEventListener('click', (event) => event.preventDefault())
+    await user.click(link)
+
+    expect(filesApi.getDocument).not.toHaveBeenCalled()
+  })
+
+  it('opens the detail page from a search result file', async () => {
+    const user = userEvent.setup()
+    filesApi.search.mockResolvedValue({
+      folders: [],
+      documents: [
+        { id: 9, name: 'report.txt', content_type: 'text/plain', byte_size: 4, location: null },
+      ],
+    })
+    filesApi.getDocument.mockResolvedValue({
+      document: {
+        id: 9,
+        name: 'report.txt',
+        content_type: 'text/plain',
+        byte_size: 4,
+        is_public: false,
+        updated_at: '2026-07-10T00:00:00Z',
+      },
+      versions: [],
+    })
+
+    renderWithMantine(<HomePage />)
+    await screen.findByText(
+      'This folder is empty. Drag files here or use the Upload button.',
+    )
+    await user.type(screen.getByLabelText('Search files and folders'), 'report')
+    await user.click(await screen.findByTestId('search-document-9'))
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'report.txt' }),
+    ).toBeInTheDocument()
+    expect(filesApi.getDocument).toHaveBeenCalledWith(9)
   })
 
   it('navigates into a folder and shows its breadcrumb', async () => {

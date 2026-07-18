@@ -11,6 +11,7 @@ import {
   Stack,
   Table,
   Text,
+  TextInput,
   Title,
   Tooltip,
 } from '@mantine/core'
@@ -20,6 +21,7 @@ import {
   IconDownload,
   IconFile,
   IconFolder,
+  IconSearch,
   IconUser,
 } from '@tabler/icons-react'
 import { filesApi } from '../api/client'
@@ -41,6 +43,9 @@ function SharedPage() {
   const [copyTarget, setCopyTarget] = useState(null)
   const [copying, setCopying] = useState(false)
   const [notice, setNotice] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState(null)
+  const [searching, setSearching] = useState(false)
 
   const parentId = path.length > 0 ? path[path.length - 1].id : null
 
@@ -79,12 +84,40 @@ function SharedPage() {
     }
   }, [selectedUser, loadEntries, loadUsers])
 
+  useEffect(() => {
+    const query = searchQuery.trim()
+    if (!selectedUser || !query) {
+      setSearchResults(null)
+      return undefined
+    }
+    const timer = setTimeout(async () => {
+      setSearching(true)
+      setError(null)
+      try {
+        setSearchResults(await filesApi.searchSharedUser(selectedUser.id, query))
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setSearching(false)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [selectedUser, searchQuery])
+
+  // Navigating anywhere leaves search mode.
+  const navigate = (newPath) => {
+    setSearchQuery('')
+    setPath(newPath)
+  }
+
   const openUser = (user) => {
+    setSearchQuery('')
     setPath([])
     setSelectedUser(user)
   }
 
   const backToUsers = () => {
+    setSearchQuery('')
     setSelectedUser(null)
     setPath([])
   }
@@ -168,6 +201,106 @@ function SharedPage() {
   }
 
   const isEmpty = folders.length === 0 && documents.length === 0
+  const isSearching = searchQuery.trim().length > 0
+  const searchHasResults =
+    searchResults &&
+    (searchResults.folders.length > 0 || searchResults.documents.length > 0)
+
+  const renderEntries = (folderList, documentList, onFolderClick) => (
+    <Table verticalSpacing="sm" highlightOnHover>
+      <Table.Thead>
+        <Table.Tr>
+          <Table.Th>Name</Table.Th>
+          <Table.Th>Type</Table.Th>
+          <Table.Th>Size</Table.Th>
+          <Table.Th w={110} />
+        </Table.Tr>
+      </Table.Thead>
+      <Table.Tbody>
+        {folderList.map((folder) => (
+          <Table.Tr
+            key={`folder-${folder.id}`}
+            data-testid={`shared-folder-${folder.id}`}
+            onClick={() => onFolderClick(folder)}
+            style={{ cursor: 'pointer' }}
+          >
+            <Table.Td>
+              <Group gap="xs" wrap="nowrap">
+                <IconFolder size={18} />
+                <Text>{folder.name}</Text>
+              </Group>
+            </Table.Td>
+            <Table.Td>Folder</Table.Td>
+            <Table.Td>—</Table.Td>
+            <Table.Td ta="right">
+              <Group gap="xs" justify="flex-end" wrap="nowrap">
+                <Tooltip label="Copy to my files" withArrow>
+                  <ActionIcon
+                    variant="subtle"
+                    aria-label={`Copy ${folder.name}`}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      setCopyTarget({ type: 'folder', id: folder.id, name: folder.name })
+                    }}
+                  >
+                    <IconCopy size={16} />
+                  </ActionIcon>
+                </Tooltip>
+                <Tooltip label="Download" withArrow>
+                  <ActionIcon
+                    component="a"
+                    href={filesApi.sharedFolderDownloadUrl(folder.id)}
+                    variant="subtle"
+                    aria-label={`Download ${folder.name}`}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <IconDownload size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
+            </Table.Td>
+          </Table.Tr>
+        ))}
+        {documentList.map((document) => (
+          <Table.Tr key={`document-${document.id}`}>
+            <Table.Td>
+              <Group gap="xs" wrap="nowrap">
+                <IconFile size={18} />
+                <Text>{document.name}</Text>
+              </Group>
+            </Table.Td>
+            <Table.Td>{document.content_type || 'File'}</Table.Td>
+            <Table.Td>{formatBytes(document.byte_size)}</Table.Td>
+            <Table.Td ta="right">
+              <Group gap="xs" justify="flex-end" wrap="nowrap">
+                <Tooltip label="Copy to my files" withArrow>
+                  <ActionIcon
+                    variant="subtle"
+                    aria-label={`Copy ${document.name}`}
+                    onClick={() =>
+                      setCopyTarget({ type: 'document', id: document.id, name: document.name })
+                    }
+                  >
+                    <IconCopy size={16} />
+                  </ActionIcon>
+                </Tooltip>
+                <Tooltip label="Download" withArrow>
+                  <ActionIcon
+                    component="a"
+                    href={filesApi.sharedDocumentDownloadUrl(document.id)}
+                    variant="subtle"
+                    aria-label={`Download ${document.name}`}
+                  >
+                    <IconDownload size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
+            </Table.Td>
+          </Table.Tr>
+        ))}
+      </Table.Tbody>
+    </Table>
+  )
 
   return (
     <Stack gap="lg">
@@ -175,7 +308,7 @@ function SharedPage() {
         <Anchor component="button" type="button" onClick={backToUsers}>
           Shared files
         </Anchor>
-        <Anchor component="button" type="button" onClick={() => setPath([])}>
+        <Anchor component="button" type="button" onClick={() => navigate([])}>
           {displayName(selectedUser)}
         </Anchor>
         {path.map((folder, index) =>
@@ -188,7 +321,7 @@ function SharedPage() {
               key={folder.id}
               component="button"
               type="button"
-              onClick={() => setPath(path.slice(0, index + 1))}
+              onClick={() => navigate(path.slice(0, index + 1))}
             >
               {folder.name}
             </Anchor>
@@ -218,8 +351,30 @@ function SharedPage() {
         </Alert>
       )}
 
+      <TextInput
+        placeholder={`Search ${displayName(selectedUser)}'s shared files by name`}
+        leftSection={<IconSearch size={16} />}
+        value={searchQuery}
+        onChange={(event) => setSearchQuery(event.currentTarget.value)}
+        aria-label="Search shared files"
+      />
+
       <Card withBorder padding="lg" mih={160}>
-        {loading ? (
+        {isSearching ? (
+          searching ? (
+            <Center py="xl">
+              <Loader />
+            </Center>
+          ) : !searchHasResults ? (
+            <Text c="dimmed" ta="center" py="xl">
+              No matches for “{searchQuery.trim()}”.
+            </Text>
+          ) : (
+            renderEntries(searchResults.folders, searchResults.documents, (folder) =>
+              navigate([{ id: folder.id, name: folder.name }]),
+            )
+          )
+        ) : loading ? (
           <Center py="xl">
             <Loader />
           </Center>
@@ -228,99 +383,9 @@ function SharedPage() {
             Nothing shared here.
           </Text>
         ) : (
-          <Table verticalSpacing="sm" highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Type</Table.Th>
-                <Table.Th>Size</Table.Th>
-                <Table.Th w={110} />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {folders.map((folder) => (
-                <Table.Tr
-                  key={`folder-${folder.id}`}
-                  data-testid={`shared-folder-${folder.id}`}
-                  onClick={() => setPath([...path, { id: folder.id, name: folder.name }])}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <Table.Td>
-                    <Group gap="xs" wrap="nowrap">
-                      <IconFolder size={18} />
-                      <Text>{folder.name}</Text>
-                    </Group>
-                  </Table.Td>
-                  <Table.Td>Folder</Table.Td>
-                  <Table.Td>—</Table.Td>
-                  <Table.Td ta="right">
-                    <Group gap="xs" justify="flex-end" wrap="nowrap">
-                      <Tooltip label="Copy to my files" withArrow>
-                        <ActionIcon
-                          variant="subtle"
-                          aria-label={`Copy ${folder.name}`}
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            setCopyTarget({ type: 'folder', id: folder.id, name: folder.name })
-                          }}
-                        >
-                          <IconCopy size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                      <Tooltip label="Download" withArrow>
-                        <ActionIcon
-                          component="a"
-                          href={filesApi.sharedFolderDownloadUrl(folder.id)}
-                          variant="subtle"
-                          aria-label={`Download ${folder.name}`}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <IconDownload size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Group>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-              {documents.map((document) => (
-                <Table.Tr key={`document-${document.id}`}>
-                  <Table.Td>
-                    <Group gap="xs" wrap="nowrap">
-                      <IconFile size={18} />
-                      <Text>{document.name}</Text>
-                    </Group>
-                  </Table.Td>
-                  <Table.Td>{document.content_type || 'File'}</Table.Td>
-                  <Table.Td>{formatBytes(document.byte_size)}</Table.Td>
-                  <Table.Td ta="right">
-                    <Group gap="xs" justify="flex-end" wrap="nowrap">
-                      <Tooltip label="Copy to my files" withArrow>
-                        <ActionIcon
-                          variant="subtle"
-                          aria-label={`Copy ${document.name}`}
-                          onClick={() =>
-                            setCopyTarget({ type: 'document', id: document.id, name: document.name })
-                          }
-                        >
-                          <IconCopy size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                      <Tooltip label="Download" withArrow>
-                        <ActionIcon
-                          component="a"
-                          href={filesApi.sharedDocumentDownloadUrl(document.id)}
-                          variant="subtle"
-                          aria-label={`Download ${document.name}`}
-                        >
-                          <IconDownload size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Group>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
+          renderEntries(folders, documents, (folder) =>
+            navigate([...path, { id: folder.id, name: folder.name }]),
+          )
         )}
       </Card>
 

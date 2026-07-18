@@ -12,6 +12,25 @@ module Api
         render json: { users: owners.map { |owner| owner_json(owner) } }
       end
 
+      # Searches a single shared user's public content by name. Location is not
+      # returned here so private ancestor folder names are never leaked.
+      def search
+        owner = User.find_by(id: params[:user_id])
+        return render json: { error: "User not found." }, status: :not_found if owner.nil?
+
+        query = params[:q].to_s.strip
+        return render json: { folders: [], documents: [] } if query.blank?
+
+        pattern = "%#{ActiveRecord::Base.sanitize_sql_like(query)}%"
+        folders = owner.folders.public_folders.where("name ILIKE ?", pattern).order(:name).limit(100)
+        documents = owner.documents.public_documents.kept.where("name ILIKE ?", pattern).order(:name).limit(100)
+
+        render json: {
+          folders: folders.map { |folder| folder_json(folder) },
+          documents: documents.map { |document| document_json(document) }
+        }
+      end
+
       # A user's public folders and files, scoped to a public parent folder
       # (or the root). Only public items are ever exposed.
       def entries

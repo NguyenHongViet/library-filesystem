@@ -324,6 +324,28 @@ describe('filesApi', () => {
     )
   })
 
+  it('searches the whole library by name', async () => {
+    global.fetch.mockResolvedValue(mockResponse({ json: { folders: [], documents: [] } }))
+
+    await filesApi.search('report')
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/search?q=report',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('searches a single shared user by name', async () => {
+    global.fetch.mockResolvedValue(mockResponse({ json: { folders: [], documents: [] } }))
+
+    await filesApi.searchSharedUser(7, 'report')
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/shared/users/7/search?q=report',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
   it('lists a user\'s shared entries at the root', async () => {
     global.fetch.mockResolvedValue(mockResponse({ json: { folders: [], documents: [] } }))
 
