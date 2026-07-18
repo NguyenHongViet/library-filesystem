@@ -26,7 +26,7 @@ describe('AdminLayout', () => {
       </AdminLayout>,
     )
 
-    expect(screen.getByText('App')).toBeInTheDocument()
+    expect(screen.getByText('Library Filesystem')).toBeInTheDocument()
     expect(screen.getByText('content')).toBeInTheDocument()
   })
 

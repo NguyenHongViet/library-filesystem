@@ -44,7 +44,7 @@ function AdminLayout({ children, view, onNavigate }) {
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
           <Group gap="lg">
-            <Title order={4}>App</Title>
+            <Title order={4}>Library Filesystem</Title>
             {onNavigate && (
               <Group gap="xs">
                 <Button
