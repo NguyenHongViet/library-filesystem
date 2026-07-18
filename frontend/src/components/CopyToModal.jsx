@@ -54,6 +54,7 @@ function CopyToModal({ opened, targetName, onClose, onConfirm, loading = false }
       onClose={onClose}
       title={`Copy "${targetName}" to…`}
       centered
+      size="lg"
       transitionProps={{ duration: 0 }}
     >
       <Stack>
@@ -85,7 +86,7 @@ function CopyToModal({ opened, targetName, onClose, onConfirm, loading = false }
           </Alert>
         )}
 
-        <Stack gap="xs" mih={120}>
+        <Stack gap="xs" mih={240}>
           {loadingFolders ? (
             <Center py="md">
               <Loader size="sm" />
