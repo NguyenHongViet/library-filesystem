@@ -6,6 +6,7 @@ import {
   Breadcrumbs,
   Card,
   Center,
+  Checkbox,
   Group,
   Loader,
   Stack,
@@ -26,6 +27,7 @@ import {
 } from '@tabler/icons-react'
 import { filesApi } from '../api/client'
 import { formatBytes } from '../utils/format'
+import { useAuth } from '../auth/AuthContext'
 import CopyToModal from '../components/CopyToModal'
 
 function displayName(user) {
@@ -33,6 +35,9 @@ function displayName(user) {
 }
 
 function SharedPage() {
+  const { user: currentUser } = useAuth()
+  const isAdmin = currentUser?.role === 'admin'
+
   const [users, setUsers] = useState([])
   const [selectedUser, setSelectedUser] = useState(null)
   const [path, setPath] = useState([])
@@ -46,6 +51,7 @@ function SharedPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState(null)
   const [searching, setSearching] = useState(false)
+  const [includePrivate, setIncludePrivate] = useState(false)
 
   const parentId = path.length > 0 ? path[path.length - 1].id : null
 
@@ -66,7 +72,7 @@ function SharedPage() {
     setLoading(true)
     setError(null)
     try {
-      const data = await filesApi.listSharedEntries(selectedUser.id, parentId)
+      const data = await filesApi.listSharedEntries(selectedUser.id, parentId, includePrivate)
       setFolders(data.folders)
       setDocuments(data.documents)
     } catch (err) {
@@ -74,7 +80,7 @@ function SharedPage() {
     } finally {
       setLoading(false)
     }
-  }, [selectedUser, parentId])
+  }, [selectedUser, parentId, includePrivate])
 
   useEffect(() => {
     if (selectedUser) {
@@ -94,7 +100,9 @@ function SharedPage() {
       setSearching(true)
       setError(null)
       try {
-        setSearchResults(await filesApi.searchSharedUser(selectedUser.id, query))
+        setSearchResults(
+          await filesApi.searchSharedUser(selectedUser.id, query, includePrivate),
+        )
       } catch (err) {
         setError(err.message)
       } finally {
@@ -102,7 +110,7 @@ function SharedPage() {
       }
     }, 300)
     return () => clearTimeout(timer)
-  }, [selectedUser, searchQuery])
+  }, [selectedUser, searchQuery, includePrivate])
 
   // Navigating anywhere leaves search mode.
   const navigate = (newPath) => {
@@ -129,9 +137,9 @@ function SharedPage() {
       setError(null)
       try {
         if (copyTarget.type === 'folder') {
-          await filesApi.copySharedFolder(copyTarget.id, destinationFolderId)
+          await filesApi.copySharedFolder(copyTarget.id, destinationFolderId, includePrivate)
         } else {
-          await filesApi.copySharedDocument(copyTarget.id, destinationFolderId)
+          await filesApi.copySharedDocument(copyTarget.id, destinationFolderId, includePrivate)
         }
         setNotice(`Copied "${copyTarget.name}" to your library.`)
         setCopyTarget(null)
@@ -141,7 +149,7 @@ function SharedPage() {
         setCopying(false)
       }
     },
-    [copyTarget],
+    [copyTarget, includePrivate],
   )
 
   if (!selectedUser) {
@@ -151,6 +159,14 @@ function SharedPage() {
         <Text c="dimmed" size="sm">
           Pick a user to browse the files and folders they have made public.
         </Text>
+
+        {isAdmin && (
+          <Checkbox
+            label="Show private files and folders (admin)"
+            checked={includePrivate}
+            onChange={(event) => setIncludePrivate(event.currentTarget.checked)}
+          />
+        )}
 
         {error && (
           <Alert color="red" icon={<IconAlertCircle size={16} />} title="Something went wrong">
@@ -249,7 +265,7 @@ function SharedPage() {
                 <Tooltip label="Download" withArrow>
                   <ActionIcon
                     component="a"
-                    href={filesApi.sharedFolderDownloadUrl(folder.id)}
+                    href={filesApi.sharedFolderDownloadUrl(folder.id, includePrivate)}
                     variant="subtle"
                     aria-label={`Download ${folder.name}`}
                     onClick={(event) => event.stopPropagation()}
@@ -287,7 +303,7 @@ function SharedPage() {
                 <Tooltip label="Download" withArrow>
                   <ActionIcon
                     component="a"
-                    href={filesApi.sharedDocumentDownloadUrl(document.id)}
+                    href={filesApi.sharedDocumentDownloadUrl(document.id, includePrivate)}
                     variant="subtle"
                     aria-label={`Download ${document.name}`}
                   >
@@ -349,6 +365,14 @@ function SharedPage() {
         >
           {notice}
         </Alert>
+      )}
+
+      {isAdmin && (
+        <Checkbox
+          label="Show private files and folders (admin)"
+          checked={includePrivate}
+          onChange={(event) => setIncludePrivate(event.currentTarget.checked)}
+        />
       )}
 
       <TextInput

@@ -352,4 +352,117 @@ RSpec.describe "Api::V1::Shared", type: :request do
       expect(response).to have_http_status(:not_found)
     end
   end
+
+  describe "admin include_private access" do
+    let(:admin) { create(:user, :admin, password: password) }
+    let(:owner) { create(:user, name: "Owner") }
+
+    def attach_file(document, content)
+      document.file.attach(io: StringIO.new(content), filename: "#{document.name}", content_type: "text/plain")
+      document.save!
+      document
+    end
+
+    it "reveals private folders and files for an admin in entries" do
+      sign_in_user(admin)
+      create(:folder, user: owner, name: "Public", is_public: true)
+      create(:folder, user: owner, name: "Private", is_public: false)
+      create(:document, user: owner, name: "public.txt", is_public: true)
+      create(:document, user: owner, name: "private.txt", is_public: false)
+
+      get "/api/v1/shared/users/#{owner.id}/entries", params: { include_private: true }
+
+      body = JSON.parse(response.body)
+      expect(body["folders"].map { |f| f["name"] }).to contain_exactly("Public", "Private")
+      expect(body["documents"].map { |d| d["name"] }).to contain_exactly("public.txt", "private.txt")
+    end
+
+    it "ignores include_private for a non-admin" do
+      sign_in_user(member = create(:user, password: password))
+      create(:folder, user: owner, name: "Private", is_public: false)
+      create(:folder, user: owner, name: "Public", is_public: true)
+
+      get "/api/v1/shared/users/#{owner.id}/entries", params: { include_private: true }
+
+      names = JSON.parse(response.body)["folders"].map { |f| f["name"] }
+      expect(names).to eq([ "Public" ])
+      expect(member).to be_persisted
+    end
+
+    it "lets an admin browse into a private folder" do
+      sign_in_user(admin)
+      private_parent = create(:folder, user: owner, name: "Private", is_public: false)
+      create(:document, user: owner, name: "inside.txt", folder: private_parent, is_public: false)
+
+      get "/api/v1/shared/users/#{owner.id}/entries", params: { parent_id: private_parent.id, include_private: true }
+
+      expect(response).to have_http_status(:ok)
+      expect(JSON.parse(response.body)["documents"].map { |d| d["name"] }).to eq([ "inside.txt" ])
+    end
+
+    it "includes private matches in an admin search" do
+      sign_in_user(admin)
+      create(:document, user: owner, name: "report-private.txt", is_public: false)
+
+      get "/api/v1/shared/users/#{owner.id}/search", params: { q: "report", include_private: true }
+
+      expect(JSON.parse(response.body)["documents"].map { |d| d["name"] }).to eq([ "report-private.txt" ])
+    end
+
+    it "lets an admin download a private file" do
+      sign_in_user(admin)
+      document = attach_file(build(:document, user: owner, name: "secret.txt", is_public: false), "top secret")
+
+      get "/api/v1/shared/documents/#{document.id}/download", params: { include_private: true }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to eq("top secret")
+    end
+
+    it "does not let a non-admin download a private file even with the flag" do
+      sign_in_user(create(:user, password: password))
+      document = attach_file(build(:document, user: owner, name: "secret.txt", is_public: false), "top secret")
+
+      get "/api/v1/shared/documents/#{document.id}/download", params: { include_private: true }
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "zips private folder contents for an admin" do
+      sign_in_user(admin)
+      folder = create(:folder, user: owner, name: "Private", is_public: false)
+      attach_file(build(:document, user: owner, name: "secret.txt", folder: folder, is_public: false), "hidden")
+
+      get "/api/v1/shared/folders/#{folder.id}/download", params: { include_private: true }
+
+      expect(response).to have_http_status(:ok)
+      names = []
+      Zip::File.open_buffer(StringIO.new(response.body)) { |zip| zip.each { |e| names << e.name } }
+      expect(names).to include("Private/secret.txt")
+    end
+
+    it "copies a private file for an admin" do
+      sign_in_user(admin)
+      source = attach_file(build(:document, user: owner, name: "secret.txt", is_public: false), "hidden")
+
+      post "/api/v1/shared/documents/#{source.id}/copy", params: { include_private: true }
+
+      expect(response).to have_http_status(:created)
+      copy = admin.documents.find(JSON.parse(response.body).dig("document", "id"))
+      expect(copy.file.download).to eq("hidden")
+    end
+
+    it "copies a private folder subtree for an admin" do
+      sign_in_user(admin)
+      folder = create(:folder, user: owner, name: "Private", is_public: false)
+      attach_file(build(:document, user: owner, name: "secret.txt", folder: folder, is_public: false), "hidden")
+
+      expect do
+        post "/api/v1/shared/folders/#{folder.id}/copy", params: { include_private: true }
+      end.to change(admin.folders, :count).by(1)
+
+      copied = admin.folders.find_by!(name: "Private")
+      expect(copied.documents.map(&:name)).to contain_exactly("secret.txt")
+    end
+  end
 end

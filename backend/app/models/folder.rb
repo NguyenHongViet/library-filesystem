@@ -29,18 +29,24 @@ class Folder < ApplicationRecord
     [ self ] + children.flat_map(&:self_and_descendants)
   end
 
-  # Copies this folder's public subtree into `owner`'s library under `parent`,
-  # recreating the structure. Only public files and subfolders are copied, and
-  # each file becomes a fresh copy (no version history). A same-named folder in
-  # the destination is reused rather than duplicated.
-  def copy_to!(owner:, parent:)
+  # Copies this folder's subtree into `owner`'s library under `parent`,
+  # recreating the structure. Only public files/subfolders are copied unless
+  # include_private is set (an admin action). Each file becomes a fresh copy
+  # (no version history). A same-named folder in the destination is reused
+  # rather than duplicated.
+  def copy_to!(owner:, parent:, include_private: false)
     new_folder = owner.folders.find_or_create_by!(name: name, parent: parent)
-    documents.public_documents.kept.find_each do |document|
+
+    copyable_documents = include_private ? documents.kept : documents.public_documents.kept
+    copyable_documents.find_each do |document|
       document.copy_to!(owner: owner, folder: new_folder)
     end
-    children.public_folders.find_each do |child|
-      child.copy_to!(owner: owner, parent: new_folder)
+
+    copyable_children = include_private ? children : children.public_folders
+    copyable_children.find_each do |child|
+      child.copy_to!(owner: owner, parent: new_folder, include_private: include_private)
     end
+
     new_folder
   end
 

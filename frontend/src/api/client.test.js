@@ -153,6 +153,38 @@ describe('filesApi', () => {
     )
   })
 
+  it('includes the private flag for admin shared browsing, search and copy', async () => {
+    global.fetch.mockResolvedValue(mockResponse({ json: {} }))
+
+    await filesApi.listSharedEntries(7, 3, true)
+    expect(global.fetch).toHaveBeenLastCalledWith(
+      '/api/v1/shared/users/7/entries?parent_id=3&include_private=true',
+      expect.objectContaining({ method: 'GET' }),
+    )
+
+    await filesApi.searchSharedUser(7, 'x', true)
+    expect(global.fetch).toHaveBeenLastCalledWith(
+      '/api/v1/shared/users/7/search?q=x&include_private=true',
+      expect.objectContaining({ method: 'GET' }),
+    )
+
+    await filesApi.copySharedDocument(9, 4, true)
+    expect(global.fetch).toHaveBeenLastCalledWith(
+      '/api/v1/shared/documents/9/copy',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ folder_id: 4, include_private: true }),
+      }),
+    )
+
+    expect(filesApi.sharedDocumentDownloadUrl(9, true)).toBe(
+      '/api/v1/shared/documents/9/download?include_private=true',
+    )
+    expect(filesApi.sharedFolderDownloadUrl(5, true)).toBe(
+      '/api/v1/shared/folders/5/download?include_private=true',
+    )
+  })
+
   it('copies a shared folder into the root', async () => {
     global.fetch.mockResolvedValue(mockResponse({ status: 201, json: { folder: { id: 2 } } }))
 

@@ -17,9 +17,17 @@ vi.mock('../api/client', () => ({
   },
 }))
 
+let mockAuthUser = { id: 99, email: 'me@example.com', role: 'member' }
+vi.mock('../auth/AuthContext', () => ({
+  useAuth: () => ({ user: mockAuthUser }),
+}))
+
+const PRIVATE_CHECKBOX = 'Show private files and folders (admin)'
+
 describe('SharedPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAuthUser = { id: 99, email: 'me@example.com', role: 'member' }
     filesApi.listSharedUsers.mockResolvedValue({ users: [] })
     filesApi.listSharedEntries.mockResolvedValue({ folders: [], documents: [] })
     filesApi.listFolders.mockResolvedValue({ folders: [] })
@@ -67,7 +75,7 @@ describe('SharedPage', () => {
     expect(await screen.findByText('Reports')).toBeInTheDocument()
     expect(screen.getByText('public.txt')).toBeInTheDocument()
     expect(screen.getByText('2 KB')).toBeInTheDocument()
-    expect(filesApi.listSharedEntries).toHaveBeenCalledWith(1, null)
+    expect(filesApi.listSharedEntries).toHaveBeenCalledWith(1, null, false)
 
     expect(
       screen.getByRole('link', { name: 'Download public.txt' }),
@@ -121,10 +129,10 @@ describe('SharedPage', () => {
     await user.click(screen.getByTestId('shared-folder-5'))
 
     expect(await screen.findByText('nested.txt')).toBeInTheDocument()
-    await waitFor(() => expect(filesApi.listSharedEntries).toHaveBeenLastCalledWith(1, 5))
+    await waitFor(() => expect(filesApi.listSharedEntries).toHaveBeenLastCalledWith(1, 5, false))
 
     await user.click(screen.getByRole('button', { name: 'Alice' }))
-    await waitFor(() => expect(filesApi.listSharedEntries).toHaveBeenLastCalledWith(1, null))
+    await waitFor(() => expect(filesApi.listSharedEntries).toHaveBeenLastCalledWith(1, null, false))
   })
 
   it('returns to the user list through the breadcrumb', async () => {
@@ -177,7 +185,7 @@ describe('SharedPage', () => {
     })
     await user.click(screen.getByRole('button', { name: 'Reports' }))
 
-    await waitFor(() => expect(filesApi.listSharedEntries).toHaveBeenLastCalledWith(1, 5))
+    await waitFor(() => expect(filesApi.listSharedEntries).toHaveBeenLastCalledWith(1, 5, false))
   })
 
   it('copies a shared file into the chosen folder and shows a confirmation', async () => {
@@ -201,7 +209,7 @@ describe('SharedPage', () => {
     await user.click(screen.getByRole('button', { name: /copy here/i }))
 
     await waitFor(() =>
-      expect(filesApi.copySharedDocument).toHaveBeenCalledWith(9, null),
+      expect(filesApi.copySharedDocument).toHaveBeenCalledWith(9, null, false),
     )
     expect(
       await screen.findByText('Copied "public.txt" to your library.'),
@@ -259,7 +267,7 @@ describe('SharedPage', () => {
     await screen.findByText('No subfolders here.')
     await user.click(screen.getByRole('button', { name: /copy here/i }))
 
-    await waitFor(() => expect(filesApi.copySharedFolder).toHaveBeenCalledWith(5, null))
+    await waitFor(() => expect(filesApi.copySharedFolder).toHaveBeenCalledWith(5, null, false))
   })
 
   it('shows an error when a copy fails', async () => {
@@ -323,7 +331,7 @@ describe('SharedPage', () => {
 
     expect(await screen.findByText('report.txt')).toBeInTheDocument()
     expect(screen.getByText('Reports')).toBeInTheDocument()
-    await waitFor(() => expect(filesApi.searchSharedUser).toHaveBeenCalledWith(1, 'report'))
+    await waitFor(() => expect(filesApi.searchSharedUser).toHaveBeenCalledWith(1, 'report', false))
   })
 
   it('opens a folder from shared search results, leaving search mode', async () => {
@@ -344,7 +352,7 @@ describe('SharedPage', () => {
     filesApi.listSharedEntries.mockClear()
     await user.click(screen.getByTestId('shared-folder-5'))
 
-    await waitFor(() => expect(filesApi.listSharedEntries).toHaveBeenCalledWith(1, 5))
+    await waitFor(() => expect(filesApi.listSharedEntries).toHaveBeenCalledWith(1, 5, false))
     expect(screen.getByLabelText('Search shared files')).toHaveValue('')
   })
 
@@ -386,5 +394,74 @@ describe('SharedPage', () => {
     await user.click(await screen.findByText('Alice'))
 
     expect(await screen.findByText('Nothing shared here.')).toBeInTheDocument()
+  })
+
+  it('hides the private-content checkbox from non-admins', async () => {
+    renderWithMantine(<SharedPage />)
+    await screen.findByText('There are no other users yet.')
+
+    expect(screen.queryByLabelText(PRIVATE_CHECKBOX)).not.toBeInTheDocument()
+  })
+
+  it('shows and toggles the private checkbox for admins on the user list', async () => {
+    mockAuthUser = { id: 99, email: 'admin@example.com', role: 'admin' }
+    const user = userEvent.setup()
+
+    renderWithMantine(<SharedPage />)
+    const checkbox = await screen.findByLabelText(PRIVATE_CHECKBOX)
+    expect(checkbox).not.toBeChecked()
+
+    await user.click(checkbox)
+    expect(checkbox).toBeChecked()
+  })
+
+  it('lets an admin reveal private content, reloading entries with the flag', async () => {
+    mockAuthUser = { id: 99, email: 'admin@example.com', role: 'admin' }
+    const user = userEvent.setup()
+    filesApi.listSharedUsers.mockResolvedValue({
+      users: [{ id: 1, name: 'Alice', email: 'alice@example.com' }],
+    })
+
+    renderWithMantine(<SharedPage />)
+    await user.click(await screen.findByText('Alice'))
+    await screen.findByText('Nothing shared here.')
+    filesApi.listSharedEntries.mockClear()
+
+    await user.click(screen.getByLabelText(PRIVATE_CHECKBOX))
+
+    await waitFor(() =>
+      expect(filesApi.listSharedEntries).toHaveBeenCalledWith(1, null, true),
+    )
+  })
+
+  it('passes the private flag to search and copy for an admin', async () => {
+    mockAuthUser = { id: 99, email: 'admin@example.com', role: 'admin' }
+    const user = userEvent.setup()
+    filesApi.listSharedUsers.mockResolvedValue({
+      users: [{ id: 1, name: 'Alice', email: 'alice@example.com' }],
+    })
+    filesApi.searchSharedUser.mockResolvedValue({
+      folders: [],
+      documents: [{ id: 9, name: 'secret.txt', content_type: 'text/plain', byte_size: 4 }],
+    })
+    filesApi.copySharedDocument.mockResolvedValue({ document: { id: 100 } })
+
+    renderWithMantine(<SharedPage />)
+    await user.click(await screen.findByText('Alice'))
+    await user.click(screen.getByLabelText(PRIVATE_CHECKBOX))
+    await user.type(screen.getByLabelText('Search shared files'), 'secret')
+
+    await screen.findByText('secret.txt')
+    await waitFor(() =>
+      expect(filesApi.searchSharedUser).toHaveBeenLastCalledWith(1, 'secret', true),
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Copy secret.txt' }))
+    await screen.findByText('No subfolders here.')
+    await user.click(screen.getByRole('button', { name: /copy here/i }))
+
+    await waitFor(() =>
+      expect(filesApi.copySharedDocument).toHaveBeenCalledWith(9, null, true),
+    )
   })
 })

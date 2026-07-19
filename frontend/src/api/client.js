@@ -93,17 +93,29 @@ export const filesApi = {
   deleteDocument: (id) => request(`/documents/${id}`, { method: 'DELETE' }),
   listTrash: () => request('/trash'),
   search: (q) => request(`/search${query({ q })}`),
-  searchSharedUser: (userId, q) =>
-    request(`/shared/users/${userId}/search${query({ q })}`),
+  searchSharedUser: (userId, q, includePrivate) =>
+    request(
+      `/shared/users/${userId}/search${query({ q, include_private: includePrivate || undefined })}`,
+    ),
   listSharedUsers: () => request('/shared/users'),
-  listSharedEntries: (userId, parentId) =>
-    request(`/shared/users/${userId}/entries${query({ parent_id: parentId })}`),
-  sharedDocumentDownloadUrl: (id) => `/api/v1/shared/documents/${id}/download`,
-  sharedFolderDownloadUrl: (id) => `/api/v1/shared/folders/${id}/download`,
-  copySharedDocument: (id, folderId) =>
-    request(`/shared/documents/${id}/copy`, { method: 'POST', body: { folder_id: folderId } }),
-  copySharedFolder: (id, folderId) =>
-    request(`/shared/folders/${id}/copy`, { method: 'POST', body: { folder_id: folderId } }),
+  listSharedEntries: (userId, parentId, includePrivate) =>
+    request(
+      `/shared/users/${userId}/entries${query({ parent_id: parentId, include_private: includePrivate || undefined })}`,
+    ),
+  sharedDocumentDownloadUrl: (id, includePrivate) =>
+    `/api/v1/shared/documents/${id}/download${includePrivate ? '?include_private=true' : ''}`,
+  sharedFolderDownloadUrl: (id, includePrivate) =>
+    `/api/v1/shared/folders/${id}/download${includePrivate ? '?include_private=true' : ''}`,
+  copySharedDocument: (id, folderId, includePrivate) =>
+    request(`/shared/documents/${id}/copy`, {
+      method: 'POST',
+      body: { folder_id: folderId, include_private: includePrivate },
+    }),
+  copySharedFolder: (id, folderId, includePrivate) =>
+    request(`/shared/folders/${id}/copy`, {
+      method: 'POST',
+      body: { folder_id: folderId, include_private: includePrivate },
+    }),
   restoreDocument: (id) => request(`/documents/${id}/restore`, { method: 'POST' }),
   uploadDocument: (file, folderId, relativePath) => {
     const formData = new FormData()
