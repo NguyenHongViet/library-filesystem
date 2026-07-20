@@ -1,3 +1,12 @@
+export function formatDate(value) {
+  if (!value) return '—'
+  return new Date(value).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
 export function formatBytes(bytes) {
   if (bytes == null) return '—'
   if (bytes === 0) return '0 B'

@@ -52,7 +52,13 @@ describe('HomePage', () => {
     })
     filesApi.listDocuments.mockResolvedValue({
       documents: [
-        { id: 10, name: 'report.pdf', content_type: 'application/pdf', byte_size: 2048 },
+        {
+          id: 10,
+          name: 'report.pdf',
+          content_type: 'application/pdf',
+          byte_size: 2048,
+          created_at: '2026-07-20T00:00:00Z',
+        },
       ],
     })
 
@@ -63,6 +69,9 @@ describe('HomePage', () => {
     expect(screen.getByText('application/pdf')).toBeInTheDocument()
     expect(screen.getByText('2 KB')).toBeInTheDocument()
     expect(screen.getByText('Folder')).toBeInTheDocument()
+    // "Uploaded" date column
+    expect(screen.getByText('Uploaded')).toBeInTheDocument()
+    expect(screen.getByText(/2026/)).toBeInTheDocument()
   })
 
   it('shows an error when loading fails', async () => {

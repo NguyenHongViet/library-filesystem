@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { formatBytes } from './format'
+import { formatBytes, formatDate } from './format'
+
+describe('formatDate', () => {
+  it('returns a dash for null or undefined', () => {
+    expect(formatDate(null)).toBe('—')
+    expect(formatDate(undefined)).toBe('—')
+  })
+
+  it('formats an ISO date to a readable day', () => {
+    const formatted = formatDate('2026-07-20T09:00:00Z')
+    expect(formatted).toContain('2026')
+    expect(formatted).not.toBe('—')
+  })
+})
 
 describe('formatBytes', () => {
   it('returns a dash for null or undefined', () => {

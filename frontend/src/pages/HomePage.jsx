@@ -30,7 +30,7 @@ import {
   IconUpload,
 } from '@tabler/icons-react'
 import { filesApi } from '../api/client'
-import { formatBytes } from '../utils/format'
+import { formatBytes, formatDate } from '../utils/format'
 import FileDropzone from '../components/FileDropzone'
 import SharingToggle from '../components/SharingToggle'
 import FileDetailPage from './FileDetailPage'
@@ -417,6 +417,7 @@ function HomePage() {
                   <Table.Th>Name</Table.Th>
                   <Table.Th>Type</Table.Th>
                   <Table.Th>Size</Table.Th>
+                  <Table.Th>Uploaded</Table.Th>
                   <Table.Th ta="right">Sharing</Table.Th>
                   <Table.Th w={100} />
                 </Table.Tr>
@@ -455,6 +456,7 @@ function HomePage() {
                     </Table.Td>
                     <Table.Td>Folder</Table.Td>
                     <Table.Td>—</Table.Td>
+                    <Table.Td>{formatDate(folder.created_at)}</Table.Td>
                     <Table.Td ta="right">
                       <SharingToggle
                         isPublic={folder.is_public}
@@ -514,6 +516,7 @@ function HomePage() {
                     </Table.Td>
                     <Table.Td>{document.content_type || 'File'}</Table.Td>
                     <Table.Td>{formatBytes(document.byte_size)}</Table.Td>
+                    <Table.Td>{formatDate(document.created_at)}</Table.Td>
                     <Table.Td ta="right">
                       <SharingToggle
                         isPublic={document.is_public}
