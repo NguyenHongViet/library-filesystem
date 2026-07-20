@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_17_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_20_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -63,7 +63,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_17_090000) do
     t.string "deleted_path"
     t.text "description"
     t.bigint "folder_id"
-    t.boolean "is_public", default: false, null: false
+    t.boolean "is_public", default: true, null: false
     t.string "name", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
@@ -76,7 +76,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_17_090000) do
 
   create_table "folders", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.boolean "is_public", default: false, null: false
+    t.boolean "is_public", default: true, null: false
     t.string "name", null: false
     t.bigint "parent_id"
     t.datetime "updated_at", null: false

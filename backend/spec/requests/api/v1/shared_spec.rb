@@ -236,7 +236,7 @@ RSpec.describe "Api::V1::Shared", type: :request do
       expect(copy.copied_from).to eq(source)
       expect(copy.file.download).to eq("hello")
       expect(copy.document_versions).to be_empty
-      expect(copy.is_public).to be(false)
+      expect(copy.is_public).to be(true) # collaborative default
       # Independent blob, so purging one never affects the other.
       expect(copy.file.blob_id).not_to eq(source.file.blob_id)
     end

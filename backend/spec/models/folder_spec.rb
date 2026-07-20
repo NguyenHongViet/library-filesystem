@@ -10,14 +10,14 @@ RSpec.describe Folder, type: :model do
   it { is_expected.to validate_presence_of(:name) }
   it { is_expected.to validate_uniqueness_of(:name).scoped_to(:user_id, :parent_id) }
 
-  it 'defaults is_public to false' do
-    expect(create(:folder).is_public).to be(false)
+  it 'defaults is_public to true (collaborative by default)' do
+    expect(create(:folder).is_public).to be(true)
   end
 
   describe '.public_folders' do
     it 'returns only public folders' do
       public_folder = create(:folder, is_public: true)
-      create(:folder)
+      create(:folder, is_public: false)
       expect(described_class.public_folders).to contain_exactly(public_folder)
     end
   end

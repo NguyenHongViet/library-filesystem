@@ -11,8 +11,8 @@ RSpec.describe Document, type: :model do
   it { is_expected.to have_one_attached(:file) }
   it { is_expected.to validate_presence_of(:name) }
 
-  it 'defaults is_public to false' do
-    expect(create(:document).is_public).to be(false)
+  it 'defaults is_public to true (collaborative by default)' do
+    expect(create(:document).is_public).to be(true)
   end
 
   it 'nullifies copies when the source is destroyed' do
@@ -25,7 +25,7 @@ RSpec.describe Document, type: :model do
   describe '.public_documents' do
     it 'returns only public documents' do
       public_doc = create(:document, is_public: true)
-      create(:document)
+      create(:document, is_public: false)
       expect(described_class.public_documents).to contain_exactly(public_doc)
     end
   end
