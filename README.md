@@ -8,6 +8,62 @@ Architecture:
 - **frontend/** — React 19 + Vite (SPA)
 - **docker-compose.yml** — bundles `db` (Postgres), `backend`, `frontend` for the dev environment
 
+## Features
+
+### Authentication & accounts
+
+- Session/cookie authentication via Devise (`login` / `logout` / `me`).
+- Two roles: **member** and **admin**.
+
+### My files
+
+- Browse folders with a breadcrumb; click a folder to open it.
+- Create folders (nested supported).
+- Upload **multiple files** and **whole folders** (structure preserved) via the
+  Upload buttons or drag-and-drop. A mix of files and folders can be dropped at
+  once. An upload **progress bar** shows how many items are done.
+- Re-uploading a file with the same name in the same location **overwrites** it
+  and keeps the previous contents as an older **version** (up to the 5 most
+  recent versions). Identical content is detected by **checksum** and skipped so
+  no redundant version is stored.
+- **Move** files into folders by drag-and-drop.
+- Toggle **public/private** on each file and folder.
+- **Delete**: files are soft-deleted (sent to Trash); deleting a folder removes
+  it but moves its files to the Trash, remembering their original path.
+- **Download** a single file, or a folder / the whole library as a **ZIP**
+  (folder structure preserved).
+- **File detail page** (open by clicking a file): shows location, type, size,
+  and the **version history** with restore + download for each version, plus
+  download of the current file.
+- **Search** files and folders by name across the whole library (results show
+  each item's location).
+
+### Trash
+
+- List of deleted files with their original location and deletion date.
+- **Restore** a file — its folder path is recreated if it no longer exists.
+- A scheduled job permanently deletes files that have been in the Trash for more
+  than **30 days** (runs daily via Solid Queue).
+
+### Shared files
+
+- Browse the list of users, then browse a selected user's **public** folders and
+  files (with breadcrumb).
+- **Download** a shared file, or a shared folder as a ZIP.
+- **Copy** a shared file or folder into your own library (folders keep their
+  structure; copies are fresh files with no version history; name collisions are
+  auto-renamed, e.g. `report (1).txt`).
+- **Search** a single user's shared content by name.
+- **Admin only:** a checkbox reveals **private** files and folders too, and lets
+  the admin browse / search / download / copy them.
+
+### User management (admin only)
+
+- A **Manage users** page (linked next to Sign out) with full CRUD: list,
+  create, edit (name, email, role, password), and delete users.
+- Passwords are only changed on edit when a new one is provided; an admin cannot
+  delete their own account.
+
 ## Requirements
 
 Only **Docker** and **Docker Compose**. No need to install Ruby/Node on your machine.
