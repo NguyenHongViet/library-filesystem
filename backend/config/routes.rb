@@ -15,6 +15,9 @@ Rails.application.routes.draw do
       delete "logout" => "sessions#destroy"
       get "me" => "sessions#show"
 
+      patch "account/password" => "account#update_password"
+      delete "account" => "account#destroy"
+
       resources :documents, only: [ :index, :show, :create, :update, :destroy ] do
         member do
           get :download

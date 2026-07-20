@@ -8,6 +8,7 @@ vi.mock('../api/client', () => ({
     me: vi.fn(),
     login: vi.fn(),
     logout: vi.fn(),
+    deleteAccount: vi.fn(),
   },
 }))
 
@@ -87,6 +88,21 @@ describe('useAuth', () => {
     })
 
     expect(authApi.logout).toHaveBeenCalled()
+    expect(result.current.user).toBeNull()
+  })
+
+  it('clears the user after deleting the account', async () => {
+    authApi.me.mockResolvedValue({ user: { id: 4, email: 'leave@example.com' } })
+    authApi.deleteAccount.mockResolvedValue(null)
+
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitFor(() => expect(result.current.user).not.toBeNull())
+
+    await act(async () => {
+      await result.current.deleteAccount()
+    })
+
+    expect(authApi.deleteAccount).toHaveBeenCalled()
     expect(result.current.user).toBeNull()
   })
 })

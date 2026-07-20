@@ -12,6 +12,7 @@ import {
   IconFiles,
   IconLogout,
   IconMoon,
+  IconSettings,
   IconSun,
   IconTrash,
   IconUsers,
@@ -80,6 +81,16 @@ function AdminLayout({ children, view, onNavigate }) {
               <Text size="sm" c="dimmed">
                 {user.name || user.email}
               </Text>
+            )}
+            {user && onNavigate && (
+              <Button
+                variant={view === 'account' ? 'light' : 'default'}
+                size="xs"
+                leftSection={<IconSettings size={16} />}
+                onClick={() => onNavigate('account')}
+              >
+                Account
+              </Button>
             )}
             {user?.role === 'admin' && onNavigate && (
               <Button

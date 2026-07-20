@@ -36,8 +36,13 @@ export function AuthProvider({ children }) {
     setUser(null)
   }, [])
 
+  const deleteAccount = useCallback(async () => {
+    await authApi.deleteAccount()
+    setUser(null)
+  }, [])
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   )

@@ -123,6 +123,23 @@ describe('App', () => {
     expect(adminApi.listUsers).toHaveBeenCalled()
   })
 
+  it('opens the account page', async () => {
+    const userEvent = (await import('@testing-library/user-event')).default
+    const user = userEvent.setup()
+    authApi.me.mockResolvedValue({
+      user: { id: 1, email: 'admin@example.com', name: 'Admin User', role: 'member' },
+    })
+
+    renderWithProviders(<App />)
+    await screen.findByRole('heading', { level: 2, name: 'My files' })
+
+    await user.click(screen.getByRole('button', { name: /account/i }))
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Account' }),
+    ).toBeInTheDocument()
+  })
+
   it('signs the user out', async () => {
     const userEvent = (await import('@testing-library/user-event')).default
     const user = userEvent.setup()

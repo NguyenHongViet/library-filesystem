@@ -50,6 +50,12 @@ export const authApi = {
     request('/login', { method: 'POST', body: { user: { email, password } } }),
   logout: () => request('/logout', { method: 'DELETE' }),
   me: () => request('/me'),
+  changePassword: (currentPassword, password) =>
+    request('/account/password', {
+      method: 'PATCH',
+      body: { current_password: currentPassword, password },
+    }),
+  deleteAccount: () => request('/account', { method: 'DELETE' }),
 }
 
 export const adminApi = {

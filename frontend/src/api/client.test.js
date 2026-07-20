@@ -73,6 +73,31 @@ describe('authApi', () => {
 
     await expect(authApi.me()).rejects.toThrow('Something went wrong. Please try again.')
   })
+
+  it('changes the password with the current and new values', async () => {
+    global.fetch.mockResolvedValue(mockResponse({ json: { user: { id: 1 } } }))
+
+    await authApi.changePassword('oldpass', 'newpass123')
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/account/password',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ current_password: 'oldpass', password: 'newpass123' }),
+      }),
+    )
+  })
+
+  it('deletes the current account', async () => {
+    global.fetch.mockResolvedValue(mockResponse({ status: 204, json: null, contentType: null }))
+
+    await authApi.deleteAccount()
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/account',
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
 })
 
 describe('filesApi', () => {

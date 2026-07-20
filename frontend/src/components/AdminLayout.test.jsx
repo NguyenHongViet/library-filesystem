@@ -85,6 +85,24 @@ describe('AdminLayout', () => {
     expect(onNavigate).toHaveBeenCalledWith('users')
   })
 
+  it('shows an Account button for any signed-in user and reports the target', async () => {
+    authApi.me.mockResolvedValue({
+      user: { id: 2, email: 'member@example.com', name: 'Member', role: 'member' },
+    })
+    const user = userEvent.setup()
+    const onNavigate = vi.fn()
+
+    renderWithProviders(
+      <AdminLayout view="files" onNavigate={onNavigate}>
+        <div>content</div>
+      </AdminLayout>,
+    )
+
+    const button = await screen.findByRole('button', { name: /account/i })
+    await user.click(button)
+    expect(onNavigate).toHaveBeenCalledWith('account')
+  })
+
   it('hides the Manage users button for non-admins', async () => {
     authApi.me.mockResolvedValue({
       user: { id: 2, email: 'member@example.com', name: 'Member', role: 'member' },

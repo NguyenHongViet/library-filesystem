@@ -17,7 +17,8 @@ Architecture:
 
 ### My files
 
-- Browse folders with a breadcrumb; click a folder to open it.
+- Browse folders with a breadcrumb; click a folder to open it. The list shows
+  each item's **name, size and upload date**.
 - Create folders (nested supported).
 - Upload **multiple files** and **whole folders** (structure preserved) via the
   Upload buttons or drag-and-drop. A mix of files and folders can be dropped at
@@ -27,7 +28,9 @@ Architecture:
   recent versions). Identical content is detected by **checksum** and skipped so
   no redundant version is stored.
 - **Move** files into folders by drag-and-drop.
-- Toggle **public/private** on each file and folder.
+- Files and folders are **public (visible to everyone) by default** — the
+  library is collaborative — and each one has a switch to make it **private**
+  (hidden from other users). Existing items keep their current visibility.
 - **Delete**: files are soft-deleted (sent to Trash); deleting a folder removes
   it but moves its files to the Trash, remembering their original path.
 - **Download** a single file, or a folder / the whole library as a **ZIP**
@@ -57,12 +60,14 @@ Architecture:
 - **Admin only:** a checkbox reveals **private** files and folders too, and lets
   the admin browse / search / download / copy them.
 
-### User management (admin only)
+### Account & user management
 
-- A **Manage users** page (linked next to Sign out) with full CRUD: list,
-  create, edit (name, email, role, password), and delete users.
+- **Any user** has an **Account** page to **change their own password** and to
+  **leave** (permanently delete their own account and all their files).
+- **Admin only:** a **Manage users** page (linked next to Sign out) with full
+  CRUD: list, create, edit (name, email, role, password), and delete users.
 - Passwords are only changed on edit when a new one is provided; an admin cannot
-  delete their own account.
+  delete their own account from the admin page.
 
 ## Requirements
 
